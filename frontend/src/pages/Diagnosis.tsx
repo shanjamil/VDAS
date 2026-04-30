@@ -206,6 +206,68 @@ export default function Diagnosis() {
           style={{ animationDelay: "240ms", animationFillMode: "backwards" }}
         >
           <div className="flex items-center gap-2">
+            <Wrench className="h-5 w-5 text-secondary" />
+            <h3 className="text-xl font-semibold">Step-by-Step Repair Guide</h3>
+          </div>
+          <p className="text-sm text-muted-foreground">Follow these steps in order for a safe brake service.</p>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-2">
+            {MOCK_GUIDES.map((g, i) => (
+              <article
+                key={g.id}
+                className={cn(
+                  "glass card-shadow rounded-2xl p-6 transition-all hover:-translate-y-1 hover:shadow-lg",
+                  MOCK_GUIDES.length % 2 !== 0 && i === MOCK_GUIDES.length - 1 && "md:col-span-2"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-sm font-bold text-primary">
+                    {i + 1}
+                  </span>
+                  <h4 className="text-base font-semibold">{g.title}</h4>
+                </div>
+                <ul className="mt-4 space-y-2.5">
+                  {g.steps.map((s, si) => (
+                    <li key={s} className="flex gap-3 text-sm text-muted-foreground">
+                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-elevated text-[10px] font-semibold text-foreground">
+                        {si + 1}
+                      </span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                  <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+                  {g.tools.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full bg-elevated px-2.5 py-0.5 text-[11px] text-muted-foreground"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between text-xs">
+                  <span className={cn("rounded-full border px-2.5 py-1 font-medium", diffTone[g.difficulty])}>
+                    {g.difficulty}
+                  </span>
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {g.time}
+                    </span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          className="mt-10 animate-slide-up"
+          style={{ animationDelay: "320ms", animationFillMode: "backwards" }}
+        >
+          <div className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-secondary" />
             <h3 className="text-lg font-semibold">Nearby Mechanics</h3>
           </div>
@@ -273,53 +335,6 @@ export default function Diagnosis() {
                 <MechanicsMap mechanics={MOCK_MECHANICS} activeId={activeMechanicId} />
               </div>
             </div>
-          </div>
-        </section>
-
-        <section
-          className="mt-10 animate-slide-up"
-          style={{ animationDelay: "320ms", animationFillMode: "backwards" }}
-        >
-          <h3 className="text-lg font-semibold">Step-by-Step Repair Guide</h3>
-          <p className="text-sm text-muted-foreground">Follow these steps in order for a safe brake service.</p>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            {MOCK_GUIDES.map((g, i) => (
-              <article
-                key={g.id}
-                className="glass card-shadow rounded-2xl p-5 transition-all hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-xs font-bold text-primary">
-                    {i + 1}
-                  </span>
-                  <h4 className="text-sm font-semibold">{g.title}</h4>
-                </div>
-                <ul className="mt-3 space-y-1.5">
-                  {g.steps.map((s) => (
-                    <li key={s} className="flex gap-2 text-xs text-muted-foreground">
-                      <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-secondary" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-4 flex items-center justify-between text-xs">
-                  <span className={cn("rounded-full border px-2 py-0.5 font-medium", diffTone[g.difficulty])}>
-                    {g.difficulty}
-                  </span>
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      {g.time}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Wrench className="h-3.5 w-3.5" />
-                      {g.tools.length}
-                    </span>
-                  </div>
-                </div>
-              </article>
-            ))}
           </div>
         </section>
       </main>
