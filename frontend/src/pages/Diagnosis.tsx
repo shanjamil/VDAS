@@ -33,7 +33,7 @@ import { DiagnosisSkeleton } from "@/components/Skeletons";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 type DiagnosisApiResult = {
   fault_name: string;
@@ -148,6 +148,16 @@ export default function Diagnosis() {
       navigate("/login");
       return;
     }
+    const historyItemStr = sessionStorage.getItem("vdas:historyItem");
+    if (historyItemStr) {
+      try {
+        const historyData = JSON.parse(historyItemStr);
+        setResult(toDiagnosticResult(historyData));
+        setRepairGuides(toRepairGuide(historyData));
+      } catch (e) {
+        console.error("Failed to parse history item", e);
+      }
+    }
     const s = sessionStorage.getItem("vdas:symptom");
     if (s) setSymptom(s);
     setReady(true);
@@ -194,6 +204,7 @@ export default function Diagnosis() {
 
   useEffect(() => {
     if (!ready || !symptom.trim()) return;
+    if (result) return; // Prevent re-fetching if loaded from history
 
     const controller = new AbortController();
 

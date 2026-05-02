@@ -5,7 +5,7 @@ import { isAuthedStrict } from "@/lib/mockAuth";
 import { ArrowLeft, Clock, AlertTriangle, Calendar, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 type HistoryItem = {
   id: number;
@@ -150,6 +150,7 @@ export default function History() {
                   <button 
                     onClick={() => {
                       sessionStorage.setItem("vdas:symptom", item.symptom);
+                      sessionStorage.setItem("vdas:historyItem", JSON.stringify(item.result));
                       navigate("/diagnosis");
                     }}
                     className="h-10 w-10 rounded-full bg-elevated flex items-center justify-center text-foreground transition-transform group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground shrink-0"

@@ -35,6 +35,7 @@ export default function Home() {
       return;
     }
     sessionStorage.setItem("vdas:symptom", text);
+    sessionStorage.removeItem("vdas:historyItem");
     navigate("/diagnosis");
   };
 
