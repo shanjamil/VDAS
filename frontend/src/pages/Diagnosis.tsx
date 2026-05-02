@@ -15,7 +15,18 @@ import {
 import { TopBar } from "@/components/TopBar";
 import { CarViewer } from "@/components/CarViewer";
 import { MechanicsMap } from "@/components/MechanicsMap";
-import { MOCK_MECHANICS } from "@/lib/mockData";
+type Mechanic = {
+  id: string;
+  name: string;
+  rating: number;
+  reviews: number;
+  distance_km: number;
+  specialties: string[];
+  phone: string;
+  lat: number;
+  lng: number;
+  address: string;
+};
 import { ALL_PARTS, partMatchesFault, type DiagnosticResult, type FaultPart } from "@/lib/parts";
 import { isAuthedStrict } from "@/lib/mockAuth";
 import { DiagnosisSkeleton } from "@/components/Skeletons";
@@ -126,6 +137,10 @@ export default function Diagnosis() {
   const [result, setResult] = useState<DiagnosticResult | null>(null);
   const [repairGuides, setRepairGuides] = useState<RepairGuide[]>([]);
   const [error, setError] = useState("");
+  
+  const [mechanics, setMechanics] = useState<Mechanic[]>([]);
+  const [mechanicsLoading, setMechanicsLoading] = useState(false);
+  const [mechanicsError, setMechanicsError] = useState("");
   const [activeMechanicId, setActiveMechanicId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -137,6 +152,45 @@ export default function Diagnosis() {
     if (s) setSymptom(s);
     setReady(true);
   }, [navigate]);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    setMechanicsLoading(true);
+    setMechanicsError("");
+
+    if (!navigator.geolocation) {
+      setMechanicsError("Geolocation is not supported by your browser");
+      setMechanicsLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const response = await fetch(`${API_BASE_URL}/api/mechanics/?lat=${lat}&lng=${lng}`);
+          const payload = await response.json();
+          
+          if (!response.ok || payload.status !== "success") {
+            throw new Error(payload.message || "Failed to load nearby mechanics.");
+          }
+          
+          setMechanics(payload.data);
+        } catch (err: any) {
+          setMechanicsError(err.message);
+        } finally {
+          setMechanicsLoading(false);
+        }
+      },
+      (error) => {
+        setMechanicsError("Please allow location access to find nearby mechanics.");
+        setMechanicsLoading(false);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  }, [ready]);
 
   useEffect(() => {
     if (!ready || !symptom.trim()) return;
@@ -152,6 +206,7 @@ export default function Diagnosis() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("vdas:accessToken")}`,
           },
           body: JSON.stringify({ symptom: symptom.trim() }),
           signal: controller.signal,
@@ -440,67 +495,86 @@ export default function Diagnosis() {
               </p>
 
               <div className="mt-4 grid gap-4 lg:grid-cols-12">
-                <div className="lg:col-span-5 space-y-3">
-                  {MOCK_MECHANICS.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => setActiveMechanicId(m.id)}
-                      className={cn(
-                        "w-full text-left glass rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg",
-                        activeMechanicId === m.id
-                          ? "border-primary/60 shadow-[0_0_0_2px_hsl(244_100%_70%_/_0.35)]"
-                          : "hover:border-primary/40",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="text-sm font-semibold">{m.name}</h4>
-                          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-                            <span className="text-foreground font-medium">{m.rating}</span>
-                            <span>({m.reviews})</span>
-                            <span>·</span>
-                            <span>{m.distance_km} km</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {m.specialties.map((s) => (
-                          <span
-                            key={s}
-                            className="rounded-full bg-elevated px-2 py-0.5 text-[10px] text-muted-foreground"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <a
-                          href={`tel:${m.phone.replace(/\s/g, "")}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-card text-xs font-medium transition-all hover:border-primary/50 active:scale-95"
-                        >
-                          <Phone className="h-3.5 w-3.5" /> Call
-                        </a>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            directions(m);
-                          }}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg gradient-bg text-xs font-medium text-white transition-all hover:brightness-110 active:scale-95"
-                        >
-                          <Navigation className="h-3.5 w-3.5" /> Directions
-                        </button>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="lg:col-span-7">
-                  <div className="glass card-shadow rounded-2xl overflow-hidden h-[420px]">
-                    <MechanicsMap mechanics={MOCK_MECHANICS} activeId={activeMechanicId} />
+                {mechanicsLoading ? (
+                  <div className="lg:col-span-12 flex flex-col items-center justify-center py-12 text-muted-foreground glass rounded-2xl">
+                    <Clock className="h-8 w-8 mb-3 animate-spin" />
+                    <p>Locating nearby mechanics...</p>
                   </div>
-                </div>
+                ) : mechanicsError ? (
+                  <div className="lg:col-span-12 flex flex-col items-center justify-center py-12 text-danger glass rounded-2xl">
+                    <AlertTriangle className="h-8 w-8 mb-3" />
+                    <p>{mechanicsError}</p>
+                  </div>
+                ) : mechanics.length === 0 ? (
+                  <div className="lg:col-span-12 flex flex-col items-center justify-center py-12 text-muted-foreground glass rounded-2xl">
+                    <MapPin className="h-8 w-8 mb-3 opacity-50" />
+                    <p>No mechanics found nearby.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="lg:col-span-5 space-y-3">
+                      {mechanics.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => setActiveMechanicId(m.id)}
+                          className={cn(
+                            "w-full text-left glass rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg",
+                            activeMechanicId === m.id
+                              ? "border-primary/60 shadow-[0_0_0_2px_hsl(244_100%_70%_/_0.35)]"
+                              : "hover:border-primary/40",
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="text-sm font-semibold">{m.name}</h4>
+                              <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Star className="h-3.5 w-3.5 fill-warning text-warning" />
+                                <span className="text-foreground font-medium">{m.rating}</span>
+                                <span>({m.reviews})</span>
+                                <span>·</span>
+                                <span>{m.distance_km} km</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {m.specialties.map((s) => (
+                              <span
+                                key={s}
+                                className="rounded-full bg-elevated px-2 py-0.5 text-[10px] text-muted-foreground"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <a
+                              href={`tel:${m.phone.replace(/\s/g, "")}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-card text-xs font-medium transition-all hover:border-primary/50 active:scale-95"
+                            >
+                              <Phone className="h-3.5 w-3.5" /> Call
+                            </a>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                directions(m);
+                              }}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg gradient-bg text-xs font-medium text-white transition-all hover:brightness-110 active:scale-95"
+                            >
+                              <Navigation className="h-3.5 w-3.5" /> Directions
+                            </button>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="lg:col-span-7">
+                      <div className="glass card-shadow rounded-2xl overflow-hidden h-[420px]">
+                        <MechanicsMap mechanics={mechanics} activeId={activeMechanicId} />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </section>
           </>

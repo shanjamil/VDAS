@@ -43,3 +43,16 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class Diagnosis(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="diagnoses")
+    symptom = models.TextField()
+    result = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"

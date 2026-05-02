@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Diagnosis from "./pages/Diagnosis";
 import Register from "./pages/Register";
+import History from "./pages/History";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<Home />} />
       <Route path="/diagnosis" element={<Diagnosis />} />
+      <Route path="/history" element={<History />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

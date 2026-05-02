@@ -14,6 +14,7 @@ export const VoiceInput = ({
   const [recording, setRecording] = useState(false);
   const [supported, setSupported] = useState(true);
   const recRef = useRef<AnyRecognition | null>(null);
+  const finalTextRef = useRef("");
 
   useEffect(() => {
     const SR =
@@ -26,15 +27,19 @@ export const VoiceInput = ({
     rec.continuous = false;
     rec.interimResults = true;
     rec.lang = "en-US";
-    let finalText = "";
+    
+    rec.onstart = () => {
+      finalTextRef.current = "";
+    };
+
     rec.onresult = (e: any) => {
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalText += t;
+        if (e.results[i].isFinal) finalTextRef.current += t + " ";
         else interim += t;
       }
-      onTranscript((finalText + interim).trim());
+      onTranscript((finalTextRef.current + interim).trim());
     };
     rec.onend = () => setRecording(false);
     rec.onerror = (e: any) => {

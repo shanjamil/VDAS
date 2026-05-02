@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 
 User = get_user_model()
+from .models import Diagnosis
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -34,3 +35,9 @@ class LoginSerializer(serializers.Serializer):
 
 class DiagnosisRequestSerializer(serializers.Serializer):
     symptom = serializers.CharField(min_length=5, max_length=1000, trim_whitespace=True)
+
+
+class DiagnosisHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Diagnosis
+        fields = ("id", "symptom", "result", "created_at")
