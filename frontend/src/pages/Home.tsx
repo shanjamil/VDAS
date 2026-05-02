@@ -41,29 +41,27 @@ export default function Home() {
   if (!ready) return <HomeSkeleton />;
 
   return (
-    <div className="min-h-svh flex flex-col bg-background">
+    <div className="min-h-svh flex flex-col bg-background overflow-hidden">
       <TopBar />
-      <main className="flex-1 mx-auto w-full max-w-3xl px-5 py-10 md:py-14 animate-fade-in">
+      <main className="flex-1 mx-auto w-full max-w-7xl px-5 py-10 lg:py-16 animate-fade-in grid gap-10 lg:grid-cols-2 lg:items-center">
+        
+        {/* Left Side: Content & Input */}
         <section
-          className="space-y-6 animate-slide-up"
+          className="space-y-6 lg:space-y-8 max-w-xl animate-slide-up"
           style={{ animationDelay: "60ms", animationFillMode: "backwards" }}
         >
           <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" /> AI Diagnostic Engine
           </span>
 
-          <div className="flex flex-col md:flex-row md:items-center md:gap-6">
-            <div className="flex-1">
-              <h1 className="text-4xl md:text-5xl font-extrabold leading-tight tracking-tight">
-                What's troubling <span className="gradient-text">your car?</span>
-              </h1>
-              <p className="mt-3 text-muted-foreground">
-                Describe the symptoms in your own words - or tap the mic and speak.
-              </p>
-            </div>
-            <div className="mt-4 md:mt-0 h-[180px] w-[180px] shrink-0 rounded-2xl glass card-shadow overflow-hidden self-start md:self-auto">
-              <CarViewer faultyParts={[]} selectedPart={null} onSelectPart={() => {}} autoRotate />
-            </div>
+          <div>
+            <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight tracking-tight">
+              What's troubling <br className="hidden lg:block" />
+              <span className="gradient-text">your car?</span>
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Describe the symptoms in your own words - or tap the mic and speak. We'll diagnose it instantly.
+            </p>
           </div>
 
           <div className="glass card-shadow rounded-2xl p-4 transition-all focus-within:border-primary/50 focus-within:shadow-[0_0_0_4px_hsl(244_100%_70%_/_0.18)]">
@@ -88,7 +86,7 @@ export default function Home() {
 
           <div>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Try a suggestion</p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
@@ -101,6 +99,16 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* Right Side: Big Car Viewer */}
+        <section 
+          className="h-[300px] md:h-[400px] lg:h-[600px] w-full rounded-3xl lg:rounded-[3rem] glass card-shadow overflow-hidden relative animate-slide-up"
+          style={{ animationDelay: "200ms", animationFillMode: "backwards" }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-secondary/5" />
+          <CarViewer faultyParts={[]} selectedPart={null} onSelectPart={() => {}} autoRotate />
+        </section>
+
       </main>
     </div>
   );
