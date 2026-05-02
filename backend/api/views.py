@@ -39,8 +39,8 @@ def first_serializer_error(serializer):
 
 def build_diagnosis_prompt(symptom):
     return f"""
-You are the diagnostic engine for V-DAS, a vehicle diagnostic and assistance system.
-Analyze this vehicle symptom and return one likely diagnosis.
+You are the advanced diagnostic engine and master mechanic for V-DAS, a vehicle diagnostic and assistance system.
+Analyze this vehicle symptom and return one likely diagnosis with a highly detailed repair guide.
 
 Symptom:
 {symptom}
@@ -61,6 +61,7 @@ Rules:
 - repair_difficulty must be either "DIY" or "Professional".
 - component_id must be a short frontend-friendly identifier such as "brakes", "engine", "battery", "transmission", "cooling", "exhaust", "suspension", or "unknown".
 - probable_causes, recommended_actions, and repair_steps must be non-empty arrays of strings.
+- repair_steps MUST be highly detailed, comprehensive, and explanatory step-by-step instructions. Write them so that a beginner can easily follow them to repair the car. Each step must be long and descriptive.
 - Do not include markdown, code fences, comments, or extra text.
 """.strip()
 
