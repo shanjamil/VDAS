@@ -43,11 +43,11 @@ export default function Home() {
   return (
     <div className="min-h-svh flex flex-col bg-background overflow-hidden">
       <TopBar />
-      <main className="flex-1 mx-auto w-full max-w-7xl px-5 py-10 lg:py-16 animate-fade-in grid gap-10 lg:grid-cols-2 lg:items-center">
+      <main className="flex-1 mx-auto w-full max-w-7xl px-5 py-6 lg:py-8 animate-fade-in grid gap-8 lg:grid-cols-2 lg:items-center">
         
         {/* Left Side: Content & Input */}
         <section
-          className="space-y-6 lg:space-y-8 max-w-xl animate-slide-up"
+          className="space-y-5 lg:space-y-6 max-w-xl animate-slide-up"
           style={{ animationDelay: "60ms", animationFillMode: "backwards" }}
         >
           <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
@@ -55,11 +55,11 @@ export default function Home() {
           </span>
 
           <div>
-            <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight tracking-tight">
+            <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight">
               What's troubling <br className="hidden lg:block" />
               <span className="gradient-text">your car?</span>
             </h1>
-            <p className="mt-4 text-lg text-muted-foreground">
+            <p className="mt-2.5 text-base md:text-lg text-muted-foreground">
               Describe the symptoms in your own words - or tap the mic and speak. We'll diagnose it instantly.
             </p>
           </div>
