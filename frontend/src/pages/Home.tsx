@@ -58,7 +58,7 @@ export default function Home() {
                 What's troubling <span className="gradient-text">your car?</span>
               </h1>
               <p className="mt-3 text-muted-foreground">
-                Describe the symptoms in your own words — or tap the mic and speak.
+                Describe the symptoms in your own words - or tap the mic and speak.
               </p>
             </div>
             <div className="mt-4 md:mt-0 h-[180px] w-[180px] shrink-0 rounded-2xl glass card-shadow overflow-hidden self-start md:self-auto">
@@ -70,7 +70,7 @@ export default function Home() {
             <textarea
               value={symptom}
               onChange={(e) => setSymptom(e.target.value)}
-              placeholder="e.g. There's a high-pitched squeal when I press the brakes…"
+              placeholder="e.g. There's a high-pitched squeal when I press the brakes..."
               rows={4}
               className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
             />

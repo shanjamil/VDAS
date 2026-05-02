@@ -1,5 +1,7 @@
 import json
 import os
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from django.contrib.auth import authenticate
 import google.generativeai as genai
@@ -22,6 +24,10 @@ REQUIRED_DIAGNOSIS_FIELDS = {
     "repair_difficulty",
     "repair_steps",
 }
+
+
+class ProviderError(Exception):
+    pass
 
 
 def first_serializer_error(serializer):
@@ -80,6 +86,9 @@ def validate_diagnosis_result(data):
     missing = REQUIRED_DIAGNOSIS_FIELDS - set(data.keys())
     if missing:
         raise ValueError(f"Diagnosis result is missing: {', '.join(sorted(missing))}.")
+    extra = set(data.keys()) - REQUIRED_DIAGNOSIS_FIELDS
+    if extra:
+        raise ValueError(f"Diagnosis result has unexpected fields: {', '.join(sorted(extra))}.")
 
     if not isinstance(data["fault_name"], str) or not data["fault_name"].strip():
         raise ValueError("fault_name must be a non-empty string.")
@@ -106,6 +115,88 @@ def validate_diagnosis_result(data):
         "repair_difficulty": data["repair_difficulty"],
         "repair_steps": [item.strip() for item in data["repair_steps"]],
     }
+
+
+def call_groq(symptom):
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise ProviderError("GROQ_API_KEY is not configured.")
+
+    payload = {
+        "model": os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+        "temperature": 0.2,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are the diagnostic engine for V-DAS. Return only valid JSON.",
+            },
+            {
+                "role": "user",
+                "content": build_diagnosis_prompt(symptom),
+            },
+        ],
+    }
+
+    req = urllib_request.Request(
+        url="https://api.groq.com/openai/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "V-DAS/1.0",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib_request.urlopen(req, timeout=30) as response:
+            raw_payload = json.loads(response.read().decode("utf-8"))
+    except urllib_error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")
+        raise ProviderError(f"Groq HTTP {error.code}: {body}")
+    except urllib_error.URLError as error:
+        raise ProviderError(f"Groq request failed: {error.reason}")
+    except TimeoutError:
+        raise ProviderError("Groq request timed out.")
+    except Exception as error:
+        raise ProviderError(f"Groq diagnosis failed: {error}")
+
+    try:
+        content = raw_payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise ProviderError("Groq returned an unexpected response shape.")
+
+    try:
+        return validate_diagnosis_result(parse_gemini_json(content))
+    except (json.JSONDecodeError, ValueError) as error:
+        raise ProviderError(f"Groq returned invalid diagnosis JSON: {error}")
+
+
+def call_gemini(symptom):
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise ProviderError("GEMINI_API_KEY is not configured.")
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            model_name=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"),
+            generation_config={
+                "temperature": 0.2,
+                "response_mime_type": "application/json",
+            },
+        )
+        response = model.generate_content(
+            build_diagnosis_prompt(symptom),
+            request_options={"timeout": 30},
+        )
+        return validate_diagnosis_result(parse_gemini_json(response.text))
+    except json.JSONDecodeError as error:
+        raise ProviderError(f"Gemini returned invalid JSON: {error}")
+    except ValueError as error:
+        raise ProviderError(str(error))
+    except Exception as error:
+        raise ProviderError(f"Gemini diagnosis failed: {error}")
 
 
 class HealthCheckView(APIView):
@@ -202,39 +293,25 @@ class DiagnoseView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        api_key = os.getenv("GEMINI_API_KEY", "").strip()
-        if not api_key:
-            return Response(
-                {"status": "error", "message": "GEMINI_API_KEY is not configured."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
         symptom = serializer.validated_data["symptom"]
+        provider_errors = []
 
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(
-                model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
-                generation_config={
-                    "temperature": 0.2,
-                    "response_mime_type": "application/json",
+            result = call_groq(symptom)
+        except ProviderError as error:
+            provider_errors.append(str(error))
+            try:
+                result = call_gemini(symptom)
+            except ProviderError as fallback_error:
+                provider_errors.append(str(fallback_error))
+                result = None
+
+        if result is None:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Diagnosis failed. " + " | ".join(provider_errors),
                 },
-            )
-            response = model.generate_content(build_diagnosis_prompt(symptom))
-            result = validate_diagnosis_result(parse_gemini_json(response.text))
-        except json.JSONDecodeError:
-            return Response(
-                {"status": "error", "message": "Gemini returned invalid JSON."},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-        except ValueError as error:
-            return Response(
-                {"status": "error", "message": str(error)},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-        except Exception as error:
-            return Response(
-                {"status": "error", "message": f"Gemini diagnosis failed: {error}"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 

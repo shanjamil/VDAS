@@ -6,7 +6,6 @@ import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import type { MockMechanic } from "@/lib/mockData";
 
-// Fix default marker icon paths for bundlers.
 const DefaultIcon = L.icon({
   iconUrl: markerIcon as unknown as string,
   iconRetinaUrl: markerIcon2x as unknown as string,
@@ -73,7 +72,7 @@ export const MechanicsMap = ({ mechanics, activeId }: Props) => {
             <div style={{ minWidth: 160 }}>
               <strong>{m.name}</strong>
               <div style={{ fontSize: 12, opacity: 0.8 }}>
-                ★ {m.rating} ({m.reviews}) · {m.distance_km} km
+                * {m.rating} ({m.reviews}) · {m.distance_km} km
               </div>
               <div style={{ fontSize: 12, marginTop: 4 }}>{m.phone}</div>
             </div>

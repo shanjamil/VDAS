@@ -96,7 +96,7 @@ export const MOCK_GUIDES: MockGuide[] = [
     steps: [
       "Loosen lug nuts and safely raise the front of the vehicle.",
       "Remove the wheel to expose the brake caliper and rotor.",
-      "Visually measure pad thickness — replace if under 3 mm.",
+      "Visually measure pad thickness - replace if under 3 mm.",
     ],
   },
   {
@@ -118,8 +118,8 @@ export const MOCK_GUIDES: MockGuide[] = [
     time: "20 min",
     tools: ["Open road"],
     steps: [
-      "Perform 6–8 moderate stops from 60 → 20 km/h with light pedal pressure.",
-      "Follow with 2–3 firmer stops from 80 → 20 km/h without coming to a halt.",
+      "Perform 6-8 moderate stops from 60 -> 20 km/h with light pedal pressure.",
+      "Follow with 2-3 firmer stops from 80 -> 20 km/h without coming to a halt.",
       "Allow brakes to cool fully without sitting on the pedal.",
     ],
   },
