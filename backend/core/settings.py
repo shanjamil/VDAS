@@ -100,7 +100,15 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 frontend_urls = os.getenv("FRONTEND_URL", "http://localhost:5173,http://127.0.0.1:5173")
-CORS_ALLOWED_ORIGINS = [url.strip() for url in frontend_urls.split(",") if url.strip()]
+CORS_ALLOWED_ORIGINS = []
+for url in frontend_urls.split(","):
+    u = url.strip()
+    if u:
+        CORS_ALLOWED_ORIGINS.append(u)
+        if u.endswith("/"):
+            CORS_ALLOWED_ORIGINS.append(u[:-1])
+        else:
+            CORS_ALLOWED_ORIGINS.append(u + "/")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
