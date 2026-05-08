@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
-import { isAuthedStrict } from "@/lib/mockAuth";
+import { isAuthedStrict, signOut } from "@/lib/auth";
 import { ArrowLeft, Clock, AlertTriangle, Calendar, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -37,6 +38,13 @@ export default function History() {
             Authorization: `Bearer ${localStorage.getItem("vdas:accessToken")}`,
           },
         });
+
+        if (response.status === 401) {
+          signOut();
+          toast.error("Session expired. Please log in again.");
+          navigate("/login");
+          return;
+        }
 
         const data = await response.json();
         if (!response.ok || data.status !== "success") {

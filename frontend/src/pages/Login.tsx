@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Mic, Search, MapPin, Cog } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { isAuthedStrict, signIn } from "@/lib/mockAuth";
+import { isAuthedStrict, signIn } from "@/lib/auth";
 import { LoginSkeleton } from "@/components/Skeletons";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,20 +36,18 @@ export default function Login() {
     if (Object.keys(next).length) return;
 
     setLoading(true);
-    window.setTimeout(async () => {
-      try {
-        await signIn(email.trim(), password);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Login failed";
-        toast.error(message);
-        setLoading(false);
-        return;
-      }
+    try {
+      await signIn(email.trim(), password);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Login failed";
+      toast.error(message);
+      setLoading(false);
+      return;
+    }
 
-      toast.success("Welcome to V-DAS");
-      setLeaving(true);
-      window.setTimeout(() => navigate("/home"), 220);
-    }, 900);
+    toast.success("Welcome to V-DAS");
+    setLeaving(true);
+    window.setTimeout(() => navigate("/home"), 220);
   };
 
   return (

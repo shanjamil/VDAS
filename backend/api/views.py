@@ -1,8 +1,9 @@
 import json
 import math
 import os
-import random
+
 from urllib import error as urllib_error
+from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
 from django.contrib.auth import authenticate
@@ -113,7 +114,7 @@ def validate_diagnosis_result(data):
     return {
         "fault_name": data["fault_name"].strip(),
         "component_id": data["component_id"].strip(),
-        "confidence": random.randint(80, 95),
+        "confidence": data["confidence"],
         "probable_causes": [item.strip() for item in data["probable_causes"]],
         "recommended_actions": [item.strip() for item in data["recommended_actions"]],
         "repair_difficulty": data["repair_difficulty"],
@@ -350,6 +351,20 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return R * c
 
 
+VEHICLE_SERVICE_TAGS = {
+    "service:vehicle:brakes": "Brakes",
+    "service:vehicle:engine": "Engine",
+    "service:vehicle:transmission": "Transmission",
+    "service:vehicle:suspension": "Suspension",
+    "service:vehicle:exhaust": "Exhaust",
+    "service:vehicle:tyres": "Tyres",
+    "service:vehicle:air_conditioning": "AC",
+    "service:vehicle:electrical": "Electrical",
+    "service:vehicle:oil_change": "Oil Change",
+    "service:vehicle:body_repair": "Body Repair",
+}
+
+
 class MechanicsLocatorView(APIView):
     permission_classes = [AllowAny]
 
@@ -371,59 +386,93 @@ class MechanicsLocatorView(APIView):
                 {"status": "error", "message": "lat and lng must be valid numbers."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        overpass_query = f"""
+[out:json][timeout:10];
+(
+  node["shop"="car_repair"](around:30000,{lat},{lng});
+  way["shop"="car_repair"](around:30000,{lat},{lng});
+  node["craft"="car_repair"](around:30000,{lat},{lng});
+  way["craft"="car_repair"](around:30000,{lat},{lng});
+  node["amenity"="car_repair"](around:30000,{lat},{lng});
+  way["amenity"="car_repair"](around:30000,{lat},{lng});
+);
+out body center;
+""".strip()
             
-        url = f"https://nominatim.openstreetmap.org/search?format=json&q=car+repair&viewbox={lng-0.1},{lat+0.1},{lng+0.1},{lat-0.1}&bounded=1&limit=3"
-        
         req = urllib_request.Request(
-            url=url,
-            headers={"User-Agent": "V-DAS/1.0 (Mechanics Locator)"}
+            url="https://overpass-api.de/api/interpreter",
+            data=urllib_parse.urlencode({"data": overpass_query}).encode("utf-8"),
+            headers={
+                "User-Agent": "V-DAS/1.0 (Mechanics Locator)",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            method="POST",
         )
         
         try:
-            with urllib_request.urlopen(req, timeout=10) as response:
+            with urllib_request.urlopen(req, timeout=15) as response:
                 osm_data = json.loads(response.read().decode("utf-8"))
         except Exception as e:
             return Response(
-                {"status": "error", "message": f"Failed to fetch mechanics from OSM: {str(e)}"},
+                {"status": "error", "message": f"Failed to fetch mechanics: {str(e)}"},
                 status=status.HTTP_502_BAD_GATEWAY
             )
-            
+
+        elements = osm_data.get("elements", [])
         mechanics = []
-        for index, place in enumerate(osm_data):
-            place_lat = float(place.get("lat", 0))
-            place_lon = float(place.get("lon", 0))
+
+        for element in elements:
+            tags = element.get("tags", {})
+            name = tags.get("name")
+            if not name:
+                continue
+
+            if element.get("type") == "way":
+                center = element.get("center", {})
+                place_lat = center.get("lat", 0)
+                place_lon = center.get("lon", 0)
+            else:
+                place_lat = element.get("lat", 0)
+                place_lon = element.get("lon", 0)
+
             dist = haversine_distance(lat, lng, place_lat, place_lon)
-            
-            # Since Nominatim doesn't provide rating/reviews/specialties reliably, we mock them
-            # based on the place_id so they stay consistent and don't break frontend design
-            place_id = place.get("place_id", index)
-            rating = 3.5 + (place_id % 15) / 10.0
-            reviews = 10 + (place_id % 200)
-            
-            specialties = ["General Repair"]
-            if place_id % 2 == 0:
-                specialties.append("Brakes")
-            if place_id % 3 == 0:
-                specialties.append("Engine")
-            if place_id % 5 == 0:
-                specialties.append("Suspension")
-            
+
+            phone = (
+                tags.get("phone")
+                or tags.get("contact:phone")
+                or "Not available"
+            )
+
+            specialties = [
+                label
+                for tag_key, label in VEHICLE_SERVICE_TAGS.items()
+                if tags.get(tag_key) == "yes"
+            ]
+            if not specialties:
+                specialties = ["General Repair"]
+
+            addr_parts = []
+            for key in ("addr:street", "addr:city", "addr:state"):
+                val = tags.get(key)
+                if val:
+                    addr_parts.append(val)
+            address = ", ".join(addr_parts) if addr_parts else name
+
             mechanics.append({
-                "id": str(place_id),
-                "name": place.get("name") or "Auto Repair Workshop",
-                "address": place.get("display_name"),
+                "id": str(element.get("id", "")),
+                "name": name,
+                "address": address,
                 "lat": place_lat,
                 "lng": place_lon,
-                "phone": "+92 300 1234567",
-                "rating": round(rating, 1),
-                "reviews": reviews,
+                "phone": phone,
                 "distance_km": round(dist, 1),
-                "specialties": specialties
+                "specialties": specialties,
             })
             
         mechanics.sort(key=lambda x: x["distance_km"])
         
         return Response(
-            {"status": "success", "data": mechanics[:3]},
+            {"status": "success", "data": mechanics[:5]},
             status=status.HTTP_200_OK
         )

@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Phone,
   Navigation,
-  Star,
   Wrench,
   Clock,
   CheckCircle2,
@@ -18,8 +17,6 @@ import { MechanicsMap } from "@/components/MechanicsMap";
 type Mechanic = {
   id: string;
   name: string;
-  rating: number;
-  reviews: number;
   distance_km: number;
   specialties: string[];
   phone: string;
@@ -28,7 +25,7 @@ type Mechanic = {
   address: string;
 };
 import { ALL_PARTS, partMatchesFault, type DiagnosticResult, type FaultPart } from "@/lib/parts";
-import { isAuthedStrict } from "@/lib/mockAuth";
+import { isAuthedStrict, signOut } from "@/lib/auth";
 import { DiagnosisSkeleton } from "@/components/Skeletons";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -141,6 +138,7 @@ export default function Diagnosis() {
   const [mechanics, setMechanics] = useState<Mechanic[]>([]);
   const [mechanicsLoading, setMechanicsLoading] = useState(false);
   const [mechanicsError, setMechanicsError] = useState("");
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [activeMechanicId, setActiveMechanicId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -169,6 +167,31 @@ export default function Diagnosis() {
     setMechanicsLoading(true);
     setMechanicsError("");
 
+    const fetchMechanics = async (lat: number, lng: number) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/mechanics/?lat=${lat}&lng=${lng}`);
+        const payload = await response.json();
+        if (!response.ok || payload.status !== "success") {
+          throw new Error(payload.message || "Failed to load nearby mechanics.");
+        }
+        setMechanics(payload.data);
+      } catch (err: any) {
+        setMechanicsError(err.message);
+      } finally {
+        setMechanicsLoading(false);
+      }
+    };
+
+    const cachedLat = sessionStorage.getItem("vdas:lat");
+    const cachedLng = sessionStorage.getItem("vdas:lng");
+    if (cachedLat && cachedLng) {
+      const lat = parseFloat(cachedLat);
+      const lng = parseFloat(cachedLng);
+      setUserLocation({ lat, lng });
+      fetchMechanics(lat, lng);
+      return;
+    }
+
     if (!navigator.geolocation) {
       setMechanicsError("Geolocation is not supported by your browser");
       setMechanicsLoading(false);
@@ -176,25 +199,15 @@ export default function Diagnosis() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const response = await fetch(`${API_BASE_URL}/api/mechanics/?lat=${lat}&lng=${lng}`);
-          const payload = await response.json();
-          
-          if (!response.ok || payload.status !== "success") {
-            throw new Error(payload.message || "Failed to load nearby mechanics.");
-          }
-          
-          setMechanics(payload.data);
-        } catch (err: any) {
-          setMechanicsError(err.message);
-        } finally {
-          setMechanicsLoading(false);
-        }
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        sessionStorage.setItem("vdas:lat", String(lat));
+        sessionStorage.setItem("vdas:lng", String(lng));
+        setUserLocation({ lat, lng });
+        fetchMechanics(lat, lng);
       },
-      (error) => {
+      () => {
         setMechanicsError("Please allow location access to find nearby mechanics.");
         setMechanicsLoading(false);
       },
@@ -222,6 +235,13 @@ export default function Diagnosis() {
           body: JSON.stringify({ symptom: symptom.trim() }),
           signal: controller.signal,
         });
+
+        if (response.status === 401) {
+          signOut();
+          toast.error("Session expired. Please log in again.");
+          navigate("/login");
+          return;
+        }
 
         const payload = (await response.json()) as DiagnosisApiResponse;
 
@@ -409,12 +429,7 @@ export default function Diagnosis() {
                 style={{ animationDelay: "200ms", animationFillMode: "backwards" }}
               >
                 <div className="glass card-shadow rounded-2xl overflow-hidden h-[420px] lg:h-full lg:min-h-[520px] relative">
-                  <CarViewer
-                    faultyParts={faultyParts}
-                    selectedPart={faultyParts[0] ?? null}
-                    onSelectPart={() => {}}
-                    autoRotate
-                  />
+                  <CarViewer autoRotate />
                   <div className="pointer-events-none absolute top-3 left-3 rounded-full border border-danger/30 bg-danger/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-danger animate-pulse-fault">
                     Affected: {faultyParts[0] ?? "-"}
                   </div>
@@ -434,33 +449,57 @@ export default function Diagnosis() {
                 Follow these AI repair steps in order.
               </p>
 
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
-                {repairGuides.map((g, i) => (
-                  <article
-                    key={g.id}
-                    className={cn(
-                      "glass card-shadow rounded-2xl p-6 transition-all hover:-translate-y-1 hover:shadow-lg",
-                      repairGuides.length % 2 !== 0 &&
-                        i === repairGuides.length - 1 &&
-                        "md:col-span-2",
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-sm font-bold text-primary">
-                        {i + 1}
-                      </span>
-                      <h4 className="text-base font-semibold">{g.title}</h4>
-                    </div>
-                    <ul className="mt-4 space-y-2.5">
-                      {g.steps.map((s, si) => (
-                        <li key={s} className="flex gap-3 text-sm text-muted-foreground">
-                          <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-elevated text-[10px] font-semibold text-foreground">
-                            {si + 1}
-                          </span>
-                          {s}
-                        </li>
-                      ))}
-                    </ul>
+              <div className="mt-5 grid grid-cols-1 gap-6">
+                {repairGuides.map((g, i) => {
+                  // Chunk steps into 2 or 3 boxes depending on guide length
+                  const boxCount = g.steps.length > 6 ? 3 : 2;
+                  const chunkSize = Math.ceil(g.steps.length / boxCount);
+                  const boxes = [];
+                  for (let j = 0; j < g.steps.length; j += chunkSize) {
+                    boxes.push(g.steps.slice(j, j + chunkSize));
+                  }
+
+                  return (
+                    <article
+                      key={g.id}
+                      className="glass card-shadow rounded-2xl p-6 md:p-8 transition-all hover:shadow-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-sm font-bold text-primary">
+                          {i + 1}
+                        </span>
+                        <div>
+                          <h4 className="text-lg font-bold">{g.title}</h4>
+                          <p className="text-xs text-muted-foreground">Detailed repair sequence</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 space-y-6">
+                        {boxes.map((boxSteps, bi) => (
+                          <div key={bi} className="relative bg-secondary/5 rounded-2xl border border-border/50 p-5 pt-8 overflow-hidden">
+                            <div className="absolute top-0 left-0 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary rounded-br-xl">
+                              Phase {bi + 1}
+                            </div>
+                            <ul className="space-y-4">
+                              {boxSteps.map((s, si) => {
+                                const globalIndex = j => {
+                                   let count = 0;
+                                   for(let k=0; k<j; k++) count += boxes[k].length;
+                                   return count;
+                                };
+                                return (
+                                  <li key={si} className="flex gap-4 text-sm text-muted-foreground items-start group">
+                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[11px] font-bold text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                                      {globalIndex(bi) + si + 1}
+                                    </span>
+                                    <span className="leading-relaxed">{s}</span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
                     <div className="mt-4 flex flex-wrap items-center gap-1.5">
                       <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
                       {g.tools.map((t) => (
@@ -488,8 +527,9 @@ export default function Diagnosis() {
                         </span>
                       </div>
                     </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             </section>
 
@@ -523,13 +563,13 @@ export default function Diagnosis() {
                   </div>
                 ) : (
                   <>
-                    <div className="lg:col-span-5 space-y-3">
-                      {mechanics.map((m) => (
+                    <div className="lg:col-span-5 space-y-2">
+                      {mechanics.slice(0, 3).map((m) => (
                         <button
                           key={m.id}
                           onClick={() => setActiveMechanicId(m.id)}
                           className={cn(
-                            "w-full text-left glass rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg",
+                            "w-full text-left glass rounded-2xl p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg",
                             activeMechanicId === m.id
                               ? "border-primary/60 shadow-[0_0_0_2px_hsl(244_100%_70%_/_0.35)]"
                               : "hover:border-primary/40",
@@ -539,12 +579,15 @@ export default function Diagnosis() {
                             <div>
                               <h4 className="text-sm font-semibold">{m.name}</h4>
                               <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-                                <span className="text-foreground font-medium">{m.rating}</span>
-                                <span>({m.reviews})</span>
-                                <span>·</span>
-                                <span>{m.distance_km} km</span>
+                                <MapPin className="h-3.5 w-3.5 text-secondary" />
+                                <span>{m.distance_km} km away</span>
                               </div>
+                              {m.phone !== "Not available" && (
+                                <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <Phone className="h-3 w-3" />
+                                  <span>{m.phone}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1">
@@ -557,14 +600,22 @@ export default function Diagnosis() {
                               </span>
                             ))}
                           </div>
-                          <div className="mt-3 flex gap-2">
-                            <a
-                              href={`tel:${m.phone.replace(/\s/g, "")}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-card text-xs font-medium transition-all hover:border-primary/50 active:scale-95"
-                            >
-                              <Phone className="h-3.5 w-3.5" /> Call
-                            </a>
+                          <div className="mt-2 flex gap-2">
+                            {m.phone !== "Not available" ? (
+                              <a
+                                href={`tel:${m.phone.replace(/\s/g, "")}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-card text-xs font-medium transition-all hover:border-primary/50 active:scale-95"
+                              >
+                                <Phone className="h-3.5 w-3.5" /> Call
+                              </a>
+                            ) : (
+                              <span
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground opacity-50 cursor-not-allowed"
+                              >
+                                <Phone className="h-3.5 w-3.5" /> No Phone
+                              </span>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -580,8 +631,8 @@ export default function Diagnosis() {
                     </div>
 
                     <div className="lg:col-span-7">
-                      <div className="glass card-shadow rounded-2xl overflow-hidden h-[420px]">
-                        <MechanicsMap mechanics={mechanics} activeId={activeMechanicId} />
+                      <div className="glass card-shadow rounded-2xl overflow-hidden h-full min-h-[380px]">
+                        <MechanicsMap mechanics={mechanics.slice(0, 3)} activeId={activeMechanicId} userLocation={userLocation} />
                       </div>
                     </div>
                   </>

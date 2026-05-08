@@ -4,7 +4,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { CarViewer } from "@/components/CarViewer";
 import { VoiceInput } from "@/components/VoiceInput";
-import { isAuthedStrict } from "@/lib/mockAuth";
+import { isAuthedStrict } from "@/lib/auth";
 import { HomeSkeleton } from "@/components/Skeletons";
 import { toast } from "sonner";
 
@@ -27,6 +27,20 @@ export default function Home() {
     }
     setReady(true);
   }, [navigate]);
+
+  // Request location permission early so mechanics load instantly on diagnosis page
+  useEffect(() => {
+    if (!ready || !navigator.geolocation) return;
+    if (sessionStorage.getItem("vdas:lat")) return; // Already cached
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        sessionStorage.setItem("vdas:lat", String(position.coords.latitude));
+        sessionStorage.setItem("vdas:lng", String(position.coords.longitude));
+      },
+      () => {}, // Silently handle denial — will prompt again on diagnosis page
+      { timeout: 10000 }
+    );
+  }, [ready]);
 
   const start = () => {
     const text = symptom.trim();
@@ -73,7 +87,7 @@ export default function Home() {
             style={{ animationDelay: "150ms", animationFillMode: "backwards" }}
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-secondary/5" />
-            <CarViewer faultyParts={[]} selectedPart={null} onSelectPart={() => {}} autoRotate />
+            <CarViewer autoRotate />
           </section>
         </div>
 

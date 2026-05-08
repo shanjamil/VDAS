@@ -1,7 +1,7 @@
 import { LogOut, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Logo } from "@/components/Logo";
-import { signOut } from "@/lib/mockAuth";
+import { signOut } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const TopBar = () => {

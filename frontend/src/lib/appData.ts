@@ -29,51 +29,47 @@ export const DEMO_RESULT: DiagnosticResult = {
   affected_parts: ["brakes"],
 };
 
-export interface MockMechanic {
+export interface MechanicData {
   id: string;
   name: string;
-  rating: number;
-  reviews: number;
   distance_km: number;
   phone: string;
   specialties: string[];
   lat: number;
   lng: number;
+  address: string;
 }
 
-export const MOCK_MECHANICS: MockMechanic[] = [
+export const FALLBACK_MECHANICS: MechanicData[] = [
   {
     id: "m1",
     name: "AutoCare Garage",
-    rating: 4.8,
-    reviews: 214,
     distance_km: 1.2,
     phone: "+92 300 1234567",
     specialties: ["Brakes", "Suspension"],
     lat: 31.5204,
     lng: 74.3587,
+    address: "Main Boulevard, Lahore",
   },
   {
     id: "m2",
     name: "Speedy Motors Workshop",
-    rating: 4.6,
-    reviews: 158,
     distance_km: 2.7,
     phone: "+92 321 7654321",
     specialties: ["Engine", "Brakes", "AC"],
     lat: 31.5314,
     lng: 74.3437,
+    address: "Ferozepur Road, Lahore",
   },
   {
     id: "m3",
     name: "Precision Auto Hub",
-    rating: 4.9,
-    reviews: 332,
     distance_km: 3.4,
     phone: "+92 333 9988776",
     specialties: ["Brakes", "Diagnostics", "Tyres"],
     lat: 31.5104,
     lng: 74.3687,
+    address: "Mall Road, Lahore",
   },
 ];
 

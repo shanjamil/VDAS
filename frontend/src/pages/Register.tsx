@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Eye, EyeOff, Loader2, ShieldCheck, Sparkles, UserPlus } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { LoginSkeleton } from "@/components/Skeletons";
-import { isAuthedStrict, signUp } from "@/lib/mockAuth";
+import { isAuthedStrict, signUp } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -44,20 +44,18 @@ export default function Register() {
     if (Object.keys(next).length) return;
 
     setLoading(true);
-    window.setTimeout(async () => {
-      try {
-        await signUp(name.trim(), email.trim(), password);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Signup failed";
-        toast.error(message);
-        setLoading(false);
-        return;
-      }
+    try {
+      await signUp(name.trim(), email.trim(), password);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Signup failed";
+      toast.error(message);
+      setLoading(false);
+      return;
+    }
 
-      toast.success("Account created successfully. Please log in.");
-      setLeaving(true);
-      window.setTimeout(() => navigate("/login"), 240);
-    }, 900);
+    toast.success("Account created successfully. Please log in.");
+    setLeaving(true);
+    window.setTimeout(() => navigate("/login"), 240);
   };
 
   return (

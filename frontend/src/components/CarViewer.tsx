@@ -1,9 +1,10 @@
 /// <reference types="@react-three/fiber" />
-import { useState, Suspense } from "react";
-import { Canvas } from "@react-three/fiber";
-import { Stage, useGLTF, OrbitControls } from "@react-three/drei";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, Suspense, useRef, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Stage, useGLTF, OrbitControls, Html } from "@react-three/drei";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { ALL_PARTS, PART_META, type FaultPart } from "@/lib/parts";
+import * as THREE from "three";
 
 interface Props {
   faultyParts: FaultPart[];
@@ -12,10 +13,22 @@ interface Props {
   autoRotate: boolean;
 }
 
+const DRACO_CDN = "https://www.gstatic.com/draco/versioned/decoders/1.5.7/";
 const CAR_MODELS = ["/car1.glb", "/car2.glb", "/car3.glb"];
 
+function LoadingSpinner() {
+  return (
+    <Html center>
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground font-medium">Loading 3D Model…</p>
+      </div>
+    </Html>
+  );
+}
+
 function GlbModel({ url }: { url: string }) {
-  const { scene } = useGLTF(url);
+  const { scene } = useGLTF(url, DRACO_CDN);
   return <primitive object={scene} />;
 }
 
@@ -35,7 +48,7 @@ export const CarViewer = ({ autoRotate }: Props) => {
   return (
     <div className="w-full h-full relative group">
       <Canvas shadows dpr={[1, 2]} camera={{ fov: 45 }}>
-        <Suspense fallback={null}>
+        <Suspense fallback={<LoadingSpinner />}>
           {/* Stage automatically centers, scales, and lights arbitrary GLB models beautifully */}
           <Stage environment="city" intensity={0.5} adjustCamera scale={1}>
             <GlbModel url={CAR_MODELS[carIndex]} />
@@ -68,14 +81,25 @@ export const CarViewer = ({ autoRotate }: Props) => {
   );
 };
 
-// Preload models for seamless instant switching
-CAR_MODELS.forEach((url) => {
-  try {
-    useGLTF.preload(url);
-  } catch (e) {
-    console.warn("Failed to preload", url);
-  }
-});
+// Preload the first model immediately for instant display
+try {
+  useGLTF.preload(CAR_MODELS[0], DRACO_CDN);
+} catch (e) {
+  console.warn("Failed to preload", CAR_MODELS[0]);
+}
+
+// Delay preloading the other models by 3 seconds so it doesn't compete with initial page load
+if (typeof window !== "undefined") {
+  window.setTimeout(() => {
+    try {
+      useGLTF.preload(CAR_MODELS[1], DRACO_CDN);
+      useGLTF.preload(CAR_MODELS[2], DRACO_CDN);
+    } catch (e) {
+      // Ignore background preload errors
+    }
+  }, 3000);
+}
 
 export { ALL_PARTS, PART_META };
 export type { FaultPart };
+
