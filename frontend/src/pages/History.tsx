@@ -159,6 +159,7 @@ export default function History() {
                     onClick={() => {
                       sessionStorage.setItem("vdas:symptom", item.symptom);
                       sessionStorage.setItem("vdas:historyItem", JSON.stringify(item.result));
+                      sessionStorage.setItem("vdas:diagnosisId", String(item.id));
                       navigate("/diagnosis");
                     }}
                     className="h-10 w-10 rounded-full bg-elevated flex items-center justify-center text-foreground transition-transform group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground shrink-0"

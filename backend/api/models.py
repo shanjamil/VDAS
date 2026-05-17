@@ -56,3 +56,21 @@ class Diagnosis(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+
+class ChatMessage(models.Model):
+    ROLE_CHOICES = [
+        ("user", "User"),
+        ("assistant", "Assistant"),
+    ]
+
+    diagnosis = models.ForeignKey(Diagnosis, on_delete=models.CASCADE, related_name="messages")
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.role}: {self.content[:60]}"

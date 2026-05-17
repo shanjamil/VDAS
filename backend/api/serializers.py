@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 
 User = get_user_model()
-from .models import Diagnosis
+from .models import ChatMessage, Diagnosis
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -41,3 +41,14 @@ class DiagnosisHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Diagnosis
         fields = ("id", "symptom", "result", "created_at")
+
+
+class ChatRequestSerializer(serializers.Serializer):
+    diagnosis_id = serializers.IntegerField()
+    message = serializers.CharField(min_length=1, max_length=2000, trim_whitespace=True)
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = ("id", "role", "content", "created_at")

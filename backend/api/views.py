@@ -14,8 +14,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Diagnosis
-from .serializers import DiagnosisHistorySerializer, DiagnosisRequestSerializer, LoginSerializer, RegisterSerializer
+from .models import ChatMessage, Diagnosis
+from .serializers import (
+    ChatMessageSerializer,
+    ChatRequestSerializer,
+    DiagnosisHistorySerializer,
+    DiagnosisRequestSerializer,
+    LoginSerializer,
+    RegisterSerializer,
+)
 
 
 REPAIR_DIFFICULTY_VALUES = {"DIY", "Professional"}
@@ -320,11 +327,17 @@ class DiagnoseView(APIView):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
+        diagnosis_id = None
         if request.user.is_authenticated:
-            Diagnosis.objects.create(user=request.user, symptom=symptom, result=result)
+            diagnosis = Diagnosis.objects.create(user=request.user, symptom=symptom, result=result)
+            diagnosis_id = diagnosis.id
+
+        response_data = {**result}
+        if diagnosis_id is not None:
+            response_data["diagnosis_id"] = diagnosis_id
 
         return Response(
-            {"status": "success", "data": result},
+            {"status": "success", "data": response_data},
             status=status.HTTP_200_OK,
         )
 
@@ -335,6 +348,200 @@ class HistoryView(APIView):
     def get(self, request):
         diagnoses = Diagnosis.objects.filter(user=request.user)
         serializer = DiagnosisHistorySerializer(diagnoses, many=True)
+        return Response(
+            {"status": "success", "data": serializer.data},
+            status=status.HTTP_200_OK,
+        )
+
+
+def build_chat_prompt(diagnosis_result, history, user_message):
+    """Build a prompt that includes diagnosis context and conversation history."""
+    context_parts = [
+        f"Fault: {diagnosis_result.get('fault_name', 'Unknown')}",
+        f"Confidence: {diagnosis_result.get('confidence', 'N/A')}%",
+        f"Component: {diagnosis_result.get('component_id', 'Unknown')}",
+        f"Difficulty: {diagnosis_result.get('repair_difficulty', 'Unknown')}",
+        f"Causes: {', '.join(diagnosis_result.get('probable_causes', []))}",
+        f"Actions: {', '.join(diagnosis_result.get('recommended_actions', []))}",
+    ]
+    diagnosis_context = "\n".join(context_parts)
+
+    conversation = ""
+    for msg in history:
+        role_label = "User" if msg.role == "user" else "Assistant"
+        conversation += f"{role_label}: {msg.content}\n"
+
+    return f"""
+You are V-DAS, an expert AI vehicle diagnostic assistant. You previously diagnosed a vehicle issue.
+Here is the diagnosis context:
+
+{diagnosis_context}
+
+{f"Previous conversation:\n{conversation}" if conversation else ""}
+
+The user now asks a follow-up question. Provide a helpful, accurate, and concise answer.
+Keep your response focused and practical. Do not repeat the entire diagnosis unless asked.
+If the user asks about costs, give reasonable estimates. If about safety, be cautious and responsible.
+
+User question: {user_message}
+""".strip()
+
+
+def call_groq_chat(prompt):
+    """Send a chat prompt to Groq and return the text reply."""
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise ProviderError("GROQ_API_KEY is not configured.")
+
+    payload = {
+        "model": os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+        "temperature": 0.4,
+        "max_tokens": 1024,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are V-DAS, a helpful vehicle diagnostic assistant. Give concise, practical answers.",
+            },
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+    }
+
+    req = urllib_request.Request(
+        url="https://api.groq.com/openai/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "V-DAS/1.0",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib_request.urlopen(req, timeout=30) as response:
+            raw_payload = json.loads(response.read().decode("utf-8"))
+    except urllib_error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")
+        raise ProviderError(f"Groq HTTP {error.code}: {body}")
+    except urllib_error.URLError as error:
+        raise ProviderError(f"Groq request failed: {error.reason}")
+    except TimeoutError:
+        raise ProviderError("Groq request timed out.")
+    except Exception as error:
+        raise ProviderError(f"Groq chat failed: {error}")
+
+    try:
+        return raw_payload["choices"][0]["message"]["content"].strip()
+    except (KeyError, IndexError, TypeError):
+        raise ProviderError("Groq returned an unexpected response shape.")
+
+
+def call_gemini_chat(prompt):
+    """Send a chat prompt to Gemini and return the text reply."""
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise ProviderError("GEMINI_API_KEY is not configured.")
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            model_name=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"),
+            generation_config={"temperature": 0.4, "max_output_tokens": 1024},
+        )
+        response = model.generate_content(
+            prompt,
+            request_options={"timeout": 30},
+        )
+        return response.text.strip()
+    except Exception as error:
+        raise ProviderError(f"Gemini chat failed: {error}")
+
+
+class ChatView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChatRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"status": "error", "message": first_serializer_error(serializer)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        diagnosis_id = serializer.validated_data["diagnosis_id"]
+        user_message = serializer.validated_data["message"]
+
+        try:
+            diagnosis = Diagnosis.objects.get(id=diagnosis_id, user=request.user)
+        except Diagnosis.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Diagnosis not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Load conversation history (limit to last 20 messages for context window)
+        history = list(diagnosis.messages.all()[:20])
+
+        # Build the prompt with diagnosis context + conversation history
+        prompt = build_chat_prompt(diagnosis.result, history, user_message)
+
+        # Try Groq first, fall back to Gemini
+        provider_errors = []
+        reply = None
+
+        try:
+            reply = call_groq_chat(prompt)
+        except ProviderError as error:
+            provider_errors.append(str(error))
+            try:
+                reply = call_gemini_chat(prompt)
+            except ProviderError as fallback_error:
+                provider_errors.append(str(fallback_error))
+
+        if reply is None:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Chat failed. " + " | ".join(provider_errors),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        # Save both messages to the database
+        ChatMessage.objects.create(
+            diagnosis=diagnosis, role="user", content=user_message
+        )
+        ChatMessage.objects.create(
+            diagnosis=diagnosis, role="assistant", content=reply
+        )
+
+        return Response(
+            {"status": "success", "data": {"reply": reply}},
+            status=status.HTTP_200_OK,
+        )
+
+    def get(self, request):
+        """Get chat history for a specific diagnosis."""
+        diagnosis_id = request.query_params.get("diagnosis_id")
+        if not diagnosis_id:
+            return Response(
+                {"status": "error", "message": "diagnosis_id parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            diagnosis = Diagnosis.objects.get(id=diagnosis_id, user=request.user)
+        except Diagnosis.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Diagnosis not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        messages = diagnosis.messages.all()
+        serializer = ChatMessageSerializer(messages, many=True)
         return Response(
             {"status": "success", "data": serializer.data},
             status=status.HTTP_200_OK,

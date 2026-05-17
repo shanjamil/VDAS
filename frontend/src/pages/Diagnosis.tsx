@@ -10,10 +10,12 @@ import {
   CheckCircle2,
   Circle,
   MapPin,
+  MessageCircle,
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { CarViewer } from "@/components/CarViewer";
 import { MechanicsMap } from "@/components/MechanicsMap";
+import { ChatPanel } from "@/components/ChatPanel";
 type Mechanic = {
   id: string;
   name: string;
@@ -45,7 +47,7 @@ type DiagnosisApiResult = {
 type DiagnosisApiResponse =
   | {
       status: "success";
-      data: DiagnosisApiResult;
+      data: DiagnosisApiResult & { diagnosis_id?: number };
     }
   | {
       status: "error";
@@ -141,6 +143,9 @@ export default function Diagnosis() {
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [activeMechanicId, setActiveMechanicId] = useState<string | null>(null);
 
+  const [diagnosisId, setDiagnosisId] = useState<number | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+
   useEffect(() => {
     if (!isAuthedStrict()) {
       navigate("/login");
@@ -155,6 +160,10 @@ export default function Diagnosis() {
       } catch (e) {
         console.error("Failed to parse history item", e);
       }
+    }
+    const storedDiagnosisId = sessionStorage.getItem("vdas:diagnosisId");
+    if (storedDiagnosisId) {
+      setDiagnosisId(parseInt(storedDiagnosisId, 10));
     }
     const s = sessionStorage.getItem("vdas:symptom");
     if (s) setSymptom(s);
@@ -252,6 +261,9 @@ export default function Diagnosis() {
 
         setResult(toDiagnosticResult(payload.data));
         setRepairGuides(toRepairGuide(payload.data));
+        if (payload.data.diagnosis_id) {
+          setDiagnosisId(payload.data.diagnosis_id);
+        }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
 
@@ -639,6 +651,23 @@ export default function Diagnosis() {
                 )}
               </div>
             </section>
+          </>
+        )}
+        {result && diagnosisId && (
+          <>
+            <button
+              onClick={() => setChatOpen(true)}
+              className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 h-14 px-5 rounded-2xl gradient-bg text-white font-semibold shadow-2xl shadow-primary/30 transition-all hover:brightness-110 hover:scale-105 active:scale-95 chat-fab-pulse"
+            >
+              <MessageCircle className="h-5 w-5" />
+              <span className="hidden sm:inline">Ask AI</span>
+            </button>
+            <ChatPanel
+              diagnosisId={diagnosisId}
+              isOpen={chatOpen}
+              onClose={() => setChatOpen(false)}
+              onNavigateLogin={() => navigate("/login")}
+            />
           </>
         )}
       </main>
