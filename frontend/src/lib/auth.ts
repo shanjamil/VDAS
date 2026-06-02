@@ -28,6 +28,27 @@ type ErrorResponse = {
   message: string;
 };
 
+const parseApiPayload = async <T>(response: Response): Promise<T | ErrorResponse> => {
+  const contentType = response.headers.get("content-type") || "";
+  const body = await response.text();
+
+  if (contentType.includes("application/json")) {
+    return JSON.parse(body) as T | ErrorResponse;
+  }
+
+  if (!body.trim()) {
+    return {
+      status: "error",
+      message: "Backend returned an empty response.",
+    };
+  }
+
+  return {
+    status: "error",
+    message: "Backend returned a server error page instead of JSON. Check the deployed backend logs.",
+  };
+};
+
 const persistAuth = (payload: LoginResponse["data"]) => {
   localStorage.setItem(AUTH_KEY, "1");
   localStorage.setItem(ACCESS_TOKEN_KEY, payload.token.access);
@@ -69,7 +90,7 @@ export const signIn = async (email: string, password: string) => {
     }),
   });
 
-  const payload = (await response.json()) as LoginResponse | ErrorResponse;
+  const payload = await parseApiPayload<LoginResponse>(response);
 
   if (!response.ok || payload.status !== "success") {
     const message = "message" in payload ? payload.message : "Login failed.";
@@ -98,7 +119,7 @@ export const signUp = async (name: string, email: string, password: string) => {
     }),
   });
 
-  const payload = (await response.json()) as RegisterResponse | ErrorResponse;
+  const payload = await parseApiPayload<RegisterResponse>(response);
 
   if (!response.ok || payload.status !== "success") {
     const message = "message" in payload ? payload.message : "Signup failed.";
