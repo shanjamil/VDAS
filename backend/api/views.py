@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import ChatMessage, Diagnosis
+from .models import ChatMessage, Diagnosis, User
 from .serializers import (
     ChatMessageSerializer,
     ChatRequestSerializer,
@@ -22,6 +22,7 @@ from .serializers import (
     DiagnosisRequestSerializer,
     LoginSerializer,
     RegisterSerializer,
+    AdminDiagnosisSerializer,
 )
 
 
@@ -264,6 +265,7 @@ class RegisterView(APIView):
                         "id": user.id,
                         "email": user.email,
                         "name": user.name,
+                        "is_staff": user.is_staff,
                     },
                     "token": {
                         "refresh": str(refresh),
@@ -306,6 +308,7 @@ class LoginView(APIView):
                         "id": user.id,
                         "email": user.email,
                         "name": user.name,
+                        "is_staff": user.is_staff,
                     },
                     "token": {
                         "refresh": str(refresh),
@@ -721,3 +724,35 @@ out body center;
             {"status": "success", "data": mechanics[:5]},
             status=status.HTTP_200_OK
         )
+
+
+class AdminStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response(
+                {"status": "error", "message": "Only staff members can access admin stats."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        total_users = User.objects.count()
+        total_diagnoses = Diagnosis.objects.count()
+        total_earnings = total_diagnoses * 1000  # Simulated as 1000 PKR per diagnosis
+
+        recent_qs = Diagnosis.objects.select_related("user").order_by("-created_at")[:15]
+        recent_data = AdminDiagnosisSerializer(recent_qs, many=True).data
+
+        return Response(
+            {
+                "status": "success",
+                "data": {
+                    "total_users": total_users,
+                    "total_diagnoses": total_diagnoses,
+                    "total_earnings": total_earnings,
+                    "recent_diagnoses": recent_data,
+                }
+            },
+            status=status.HTTP_200_OK
+        )
+

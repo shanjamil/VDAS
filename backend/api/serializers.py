@@ -54,3 +54,12 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
         fields = ("id", "role", "content", "created_at")
+
+
+class AdminDiagnosisSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = Diagnosis
+        fields = ("id", "user_email", "symptom", "result", "created_at")
+

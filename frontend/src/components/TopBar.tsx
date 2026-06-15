@@ -1,7 +1,7 @@
-import { LogOut, LogIn, History, Globe } from "lucide-react";
+import { LogOut, LogIn, History, Globe, ShieldAlert } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Logo } from "@/components/Logo";
-import { signOut, isGuestUser } from "@/lib/auth";
+import { signOut, isGuestUser, isAdminUser } from "@/lib/auth";
 import { useLanguage } from "@/lib/LanguageContext";
 import { type Language } from "@/lib/translations";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ export const TopBar = () => {
   const navigate = useNavigate();
   const { language, setLanguage, t } = useLanguage();
   const isGuest = isGuestUser();
+  const isAdmin = isAdminUser();
 
   const handleLogout = () => {
     signOut();
@@ -54,6 +55,16 @@ export const TopBar = () => {
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">{t("history")}</span>
           </button>
+
+          {isAdmin && (
+            <button
+              onClick={() => navigate("/admin-dashboard")}
+              className="inline-flex items-center gap-2 rounded-lg border border-primary/45 bg-primary/10 text-primary px-3.5 py-2 text-sm font-semibold transition-all hover:bg-primary/20 hover:-translate-y-0.5 active:scale-95"
+            >
+              <ShieldAlert className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("manageSystem")}</span>
+            </button>
+          )}
 
           {isGuest ? (
             <button

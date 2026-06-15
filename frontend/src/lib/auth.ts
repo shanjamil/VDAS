@@ -13,6 +13,7 @@ type LoginResponse = {
       id: number;
       email: string;
       name: string;
+      is_staff?: boolean;
     };
     token: {
       refresh: string;
@@ -160,4 +161,16 @@ export const signOut = () => {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem("vdas:guest");
   } catch {}
+};
+
+export const isAdminUser = (): boolean => {
+  if (!isBrowser()) return false;
+  try {
+    const userStr = localStorage.getItem(USER_KEY);
+    if (!userStr) return false;
+    const user = JSON.parse(userStr);
+    return !!user.is_staff;
+  } catch {
+    return false;
+  }
 };

@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import Diagnosis from "./pages/Diagnosis";
 import Register from "./pages/Register";
 import History from "./pages/History";
+import AdminDashboard from "./pages/AdminDashboard";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
       <Route path="/home" element={<Home />} />
       <Route path="/diagnosis" element={<Diagnosis />} />
       <Route path="/history" element={<History />} />
+      <Route path="/admin-dashboard" element={<AdminDashboard />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
