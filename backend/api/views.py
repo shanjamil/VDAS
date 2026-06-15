@@ -51,18 +51,21 @@ def build_diagnosis_prompt(symptom, language="en"):
     lang_inst = ""
     if language == "ur":
         lang_inst = """
-- Language Rule: You MUST write the text contents of the fields ("fault_name", "probable_causes", "recommended_actions", and "repair_steps") in the Urdu language (اردو) using standard Arabic/Persian script (Nasta'liq).
-- Urdu Quality Rule: Do NOT repeat sentences or phrases. Keep the wording clear, varied, and natural. Make sure the "repair_steps" explain the mechanical procedure clearly in Urdu, step-by-step, without duplicating phrases across steps. The component_id must remain a lowercase English string identifier.
+- Language Rule: You MUST translate and write all user-facing text content (including "fault_name", all items in "probable_causes", all items in "recommended_actions", and all items in "repair_steps") entirely in the Urdu language (اردو) using standard Arabic/Persian script (Nasta'liq).
+- Important: Even if the user's symptom is written in English, you MUST translate all fields to Urdu. Do NOT use English characters or words for these fields.
+- Urdu Quality Rule: Do NOT repeat sentences or phrases. Keep the wording clear, varied, and natural. The component_id must remain a lowercase English string identifier (e.g., "brakes").
 """
     elif language == "ar":
         lang_inst = """
-- Language Rule: You MUST write the text contents of the fields ("fault_name", "probable_causes", "recommended_actions", and "repair_steps") in the Arabic language (العربية) using standard Arabic script.
-- Arabic Quality Rule: Keep the wording clear, varied, and natural, without repeating instructions or sentences. The component_id must remain a lowercase English string identifier.
+- Language Rule: You MUST translate and write all user-facing text content (including "fault_name", all items in "probable_causes", all items in "recommended_actions", and all items in "repair_steps") entirely in the Arabic language (العربية) using standard Arabic script.
+- Important: Even if the user's symptom is written in English, you MUST translate all fields to Arabic. Do NOT use English characters or words for these fields.
+- Arabic Quality Rule: Keep the wording clear, varied, and natural, without repeating instructions. The component_id must remain a lowercase English string identifier (e.g., "brakes").
 """
     elif language == "roman-ur":
         lang_inst = """
-- Language Rule: You MUST write the text contents of the fields ("fault_name", "probable_causes", "recommended_actions", and "repair_steps") in Roman Urdu (Urdu language written in English/Latin letters, e.g., "Engine start nahi ho raha aur aawaz aa rahi hai", "Brakes ghis gaye hain", "Brake pads ko tabdeel karein").
-- Roman Urdu Quality Rule: Keep the wording clear, varied, and natural, without repeating instructions. The component_id must remain a lowercase English string identifier.
+- Language Rule: You MUST translate and write all user-facing text content (including "fault_name", all items in "probable_causes", all items in "recommended_actions", and all items in "repair_steps") entirely in Roman Urdu (Urdu written in English/Latin letters, e.g., "brakes kharab hain", "engine oil tabdeel karein").
+- Important: Even if the user's symptom is written in English or Urdu script, you MUST translate all fields to Roman Urdu. Do NOT use standard English or Arabic script.
+- The component_id must remain a lowercase English string identifier (e.g., "brakes").
 """
     else:
         lang_inst = """

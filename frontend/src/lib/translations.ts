@@ -80,6 +80,17 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     date: "Date",
     reload: "Reload Data",
     noActivity: "No diagnosis logs match your criteria.",
+    // Diagnosis Page Missing Translations
+    diagnosisTitle: "Vehicle Diagnosis",
+    for: "for",
+    affected: "Affected",
+    repairStepsSubtitle: "Follow these AI repair steps in order.",
+    detailedRepairSequence: "Detailed repair sequence",
+    phase: "Phase",
+    mechanicsSubtitle: "Tap a card to fly the map to that workshop.",
+    locatingMechanics: "Locating nearby mechanics...",
+    noMechanicsFound: "No mechanics found nearby.",
+    noPhone: "No Phone",
   },
   ur: {
     // TopBar
@@ -160,6 +171,17 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     date: "تاریخ",
     reload: "دوبارہ لوڈ کریں",
     noActivity: "آپ کی تلاش کے مطابق کوئی لاگ نہیں ملا۔",
+    // Diagnosis Page Missing Translations
+    diagnosisTitle: "گاڑی کی تشخیص",
+    for: "برائے",
+    affected: "متاثرہ حصہ",
+    repairStepsSubtitle: "مرمت کے ان مراحل پر ترتیب سے عمل کریں۔",
+    detailedRepairSequence: "تفصیلی مرمت کا طریقہ کار",
+    phase: "مرحلہ",
+    mechanicsSubtitle: "ورکشاپ کی لوکیشن دیکھنے کے لیے کارڈ پر ٹیپ کریں۔",
+    locatingMechanics: "قریبی مکینک تلاش کیے جا رہے ہیں...",
+    noMechanicsFound: "قریب کوئی مکینک نہیں ملا۔",
+    noPhone: "فون نمبر دستیاب نہیں",
   },
   ar: {
     // TopBar
@@ -240,6 +262,17 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     date: "التاريخ",
     reload: "تحديث البيانات",
     noActivity: "لا توجد سجلات تشخيص تطابق معاييرك.",
+    // Diagnosis Page Missing Translations
+    diagnosisTitle: "تشخيص المركبة",
+    for: "لـ",
+    affected: "المتضرر",
+    repairStepsSubtitle: "اتبع خطوات الإصلاح هذه بالترتيب.",
+    detailedRepairSequence: "سلسلة تفاصيل الإصلاح",
+    phase: "مرحلة",
+    mechanicsSubtitle: "اضغط على بطاقة لتوجيه الخريطة إلى تلك الورشة.",
+    locatingMechanics: "جاري تحديد موقع الميكانيكيين القريبين...",
+    noMechanicsFound: "لم يتم العثور على ميكانيكيين بالقرب منك.",
+    noPhone: "لا يوجد هاتف",
   },
   "roman-ur": {
     // TopBar
@@ -320,5 +353,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     date: "Date",
     reload: "Reload Data",
     noActivity: "Koi diagnosis logs match nahi hue.",
+    // Diagnosis Page Missing Translations
+    diagnosisTitle: "Gaari ki Diagnosis",
+    for: "ke liye",
+    affected: "Affected",
+    repairStepsSubtitle: "In repair steps ko tarteeb se follow karein.",
+    detailedRepairSequence: "Detailed repair steps",
+    phase: "Phase",
+    mechanicsSubtitle: "Map par workshop dekhne ke liye card par click karein.",
+    locatingMechanics: "Qareebi mechanics dhoond rahe hain...",
+    noMechanicsFound: "Qareeb koi mechanics nahi mile.",
+    noPhone: "No Phone",
   },
 };

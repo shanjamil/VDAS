@@ -12,7 +12,10 @@ const LanguageContext = createContext<LanguageContextProps | undefined>(undefine
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem("vdas:language");
-    return (saved as Language) || "en";
+    if (saved === "en" || saved === "ur" || saved === "roman-ur" || saved === "ar") {
+      return saved as Language;
+    }
+    return "en";
   });
 
   const setLanguage = (lang: Language) => {
@@ -23,9 +26,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   useEffect(() => {
-    // Set text direction dynamically
-    const isRtl = language === "ur" || language === "ar";
-    document.documentElement.dir = isRtl ? "rtl" : "ltr";
+    // Always keep document direction LTR to prevent layout flipping (logo/buttons swapping sides)
+    document.documentElement.dir = "ltr";
     
     // Set HTML lang attribute
     document.documentElement.lang = language === "roman-ur" ? "en" : language;

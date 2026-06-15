@@ -147,6 +147,7 @@ export default function Diagnosis() {
 
   const [diagnosisId, setDiagnosisId] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [resultLanguage, setResultLanguage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthedOrGuest()) {
@@ -159,6 +160,7 @@ export default function Diagnosis() {
         const historyData = JSON.parse(historyItemStr);
         setResult(toDiagnosticResult(historyData));
         setRepairGuides(toRepairGuide(historyData));
+        setResultLanguage(language);
       } catch (e) {
         console.error("Failed to parse history item", e);
       }
@@ -228,7 +230,7 @@ export default function Diagnosis() {
 
   useEffect(() => {
     if (!ready || !symptom.trim()) return;
-    if (result) return; // Prevent re-fetching if loaded from history
+    if (result && resultLanguage === language) return; // Prevent re-fetching if already loaded in this language
 
     const controller = new AbortController();
 
@@ -263,6 +265,7 @@ export default function Diagnosis() {
 
         setResult(toDiagnosticResult(payload.data));
         setRepairGuides(toRepairGuide(payload.data));
+        setResultLanguage(language);
         if (payload.data.diagnosis_id) {
           setDiagnosisId(payload.data.diagnosis_id);
         }
@@ -280,7 +283,7 @@ export default function Diagnosis() {
     loadDiagnosis();
 
     return () => controller.abort();
-  }, [ready, symptom, language]);
+  }, [ready, symptom, language, result, resultLanguage]);
 
   const faultyParts: FaultPart[] = useMemo(
     () => ALL_PARTS.filter((p) => partMatchesFault(p, result?.affected_parts ?? [])),
@@ -325,7 +328,7 @@ export default function Diagnosis() {
           style={{ animationDelay: "40ms", animationFillMode: "backwards" }}
         >
           <h1 className="text-2xl md:text-3xl font-bold">
-            {t("diagnosisTitle")} <span className="text-muted-foreground font-medium">for</span>{" "}
+            {t("diagnosisTitle")} {t("for")}{" "}
             <span className="gradient-text">"{symptom}"</span>
           </h1>
         </div>
@@ -445,7 +448,7 @@ export default function Diagnosis() {
                 <div className="glass card-shadow rounded-2xl overflow-hidden h-[420px] lg:h-full lg:min-h-[520px] relative">
                   <CarViewer autoRotate />
                   <div className="pointer-events-none absolute top-3 left-3 rounded-full border border-danger/30 bg-danger/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-danger animate-pulse-fault">
-                    Affected: {faultyParts[0] ?? "-"}
+                    {t("affected")}: {faultyParts[0] ?? "-"}
                   </div>
                 </div>
               </section>
@@ -460,7 +463,7 @@ export default function Diagnosis() {
                 <h3 className="text-xl font-semibold">{t("repairGuide")}</h3>
               </div>
               <p className="text-sm text-muted-foreground">
-                Follow these AI repair steps in order.
+                {t("repairStepsSubtitle")}
               </p>
 
               <div className="mt-5 grid grid-cols-1 gap-6">
@@ -484,7 +487,7 @@ export default function Diagnosis() {
                         </span>
                         <div>
                           <h4 className="text-lg font-bold">{g.title}</h4>
-                          <p className="text-xs text-muted-foreground">Detailed repair sequence</p>
+                          <p className="text-xs text-muted-foreground">{t("detailedRepairSequence")}</p>
                         </div>
                       </div>
 
@@ -492,7 +495,7 @@ export default function Diagnosis() {
                         {boxes.map((boxSteps, bi) => (
                           <div key={bi} className="relative bg-secondary/5 rounded-2xl border border-border/50 p-5 pt-8 overflow-hidden">
                             <div className="absolute top-0 left-0 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary rounded-br-xl">
-                              Phase {bi + 1}
+                              {t("phase")} {bi + 1}
                             </div>
                             <ul className="space-y-4">
                               {boxSteps.map((s, si) => {
@@ -556,14 +559,14 @@ export default function Diagnosis() {
                 <h3 className="text-lg font-semibold">{t("mechanicsNear")}</h3>
               </div>
               <p className="text-sm text-muted-foreground">
-                Tap a card to fly the map to that workshop.
+                {t("mechanicsSubtitle")}
               </p>
 
               <div className="mt-4 grid gap-4 lg:grid-cols-12">
                 {mechanicsLoading ? (
                   <div className="lg:col-span-12 flex flex-col items-center justify-center py-12 text-muted-foreground glass rounded-2xl">
                     <Clock className="h-8 w-8 mb-3 animate-spin" />
-                    <p>Locating nearby mechanics...</p>
+                    <p>{t("locatingMechanics")}</p>
                   </div>
                 ) : mechanicsError ? (
                   <div className="lg:col-span-12 flex flex-col items-center justify-center py-12 text-danger glass rounded-2xl">
@@ -573,7 +576,7 @@ export default function Diagnosis() {
                 ) : mechanics.length === 0 ? (
                   <div className="lg:col-span-12 flex flex-col items-center justify-center py-12 text-muted-foreground glass rounded-2xl">
                     <MapPin className="h-8 w-8 mb-3 opacity-50" />
-                    <p>No mechanics found nearby.</p>
+                    <p>{t("noMechanicsFound")}</p>
                   </div>
                 ) : (
                   <>
@@ -594,7 +597,7 @@ export default function Diagnosis() {
                               <h4 className="text-sm font-semibold">{m.name}</h4>
                               <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <MapPin className="h-3.5 w-3.5 text-secondary" />
-                                <span>{m.distance_km} km away</span>
+                                <span>{m.distance_km} {t("mechanicDistance")}</span>
                               </div>
                               {m.phone !== "Not available" && (
                                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -621,13 +624,13 @@ export default function Diagnosis() {
                                 onClick={(e) => e.stopPropagation()}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-card text-xs font-medium transition-all hover:border-primary/50 active:scale-95"
                               >
-                                <Phone className="h-3.5 w-3.5" /> Call
+                                <Phone className="h-3.5 w-3.5" /> {t("call")}
                               </a>
                             ) : (
                               <span
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground opacity-50 cursor-not-allowed"
                               >
-                                <Phone className="h-3.5 w-3.5" /> No Phone
+                                <Phone className="h-3.5 w-3.5" /> {t("noPhone")}
                               </span>
                             )}
                             <button
@@ -637,7 +640,7 @@ export default function Diagnosis() {
                               }}
                               className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg gradient-bg text-xs font-medium text-white transition-all hover:brightness-110 active:scale-95"
                             >
-                              <Navigation className="h-3.5 w-3.5" /> Directions
+                              <Navigation className="h-3.5 w-3.5" /> {t("directions")}
                             </button>
                           </div>
                         </button>
