@@ -16,6 +16,7 @@ import { TopBar } from "@/components/TopBar";
 import { CarViewer } from "@/components/CarViewer";
 import { MechanicsMap } from "@/components/MechanicsMap";
 import { ChatPanel } from "@/components/ChatPanel";
+import { useLanguage } from "@/lib/LanguageContext";
 type Mechanic = {
   id: string;
   name: string;
@@ -27,7 +28,7 @@ type Mechanic = {
   address: string;
 };
 import { ALL_PARTS, partMatchesFault, type DiagnosticResult, type FaultPart } from "@/lib/parts";
-import { isAuthedStrict, signOut } from "@/lib/auth";
+import { isAuthedOrGuest, isGuestUser, signOut } from "@/lib/auth";
 import { DiagnosisSkeleton } from "@/components/Skeletons";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -136,6 +137,7 @@ export default function Diagnosis() {
   const [result, setResult] = useState<DiagnosticResult | null>(null);
   const [repairGuides, setRepairGuides] = useState<RepairGuide[]>([]);
   const [error, setError] = useState("");
+  const { language, t } = useLanguage();
   
   const [mechanics, setMechanics] = useState<Mechanic[]>([]);
   const [mechanicsLoading, setMechanicsLoading] = useState(false);
@@ -147,7 +149,7 @@ export default function Diagnosis() {
   const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
-    if (!isAuthedStrict()) {
+    if (!isAuthedOrGuest()) {
       navigate("/login");
       return;
     }
@@ -241,7 +243,7 @@ export default function Diagnosis() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("vdas:accessToken")}`,
           },
-          body: JSON.stringify({ symptom: symptom.trim() }),
+          body: JSON.stringify({ symptom: symptom.trim(), language: language }),
           signal: controller.signal,
         });
 
@@ -278,7 +280,7 @@ export default function Diagnosis() {
     loadDiagnosis();
 
     return () => controller.abort();
-  }, [ready, symptom]);
+  }, [ready, symptom, language]);
 
   const faultyParts: FaultPart[] = useMemo(
     () => ALL_PARTS.filter((p) => partMatchesFault(p, result?.affected_parts ?? [])),
@@ -315,7 +317,7 @@ export default function Diagnosis() {
           onClick={() => navigate("/home")}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Home
+          <ArrowLeft className={`h-4 w-4 ${language === "ur" || language === "ar" ? "rotate-180" : ""}`} /> {t("backToHome")}
         </button>
 
         <div
@@ -323,7 +325,7 @@ export default function Diagnosis() {
           style={{ animationDelay: "40ms", animationFillMode: "backwards" }}
         >
           <h1 className="text-2xl md:text-3xl font-bold">
-            Diagnosis Results <span className="text-muted-foreground font-medium">for</span>{" "}
+            {t("diagnosisTitle")} <span className="text-muted-foreground font-medium">for</span>{" "}
             <span className="gradient-text">"{symptom}"</span>
           </h1>
         </div>
@@ -335,9 +337,9 @@ export default function Diagnosis() {
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Diagnosis failed</h2>
+                <h2 className="text-lg font-semibold">{t("diagnosisFailed")}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {error || "The AI diagnosis result could not be loaded."}
+                  {error || t("diagnosisFailed")}
                 </p>
               </div>
             </div>
@@ -357,7 +359,7 @@ export default function Diagnosis() {
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                          Primary fault
+                          {t("severity")}
                         </p>
                         <h2 className="text-lg font-semibold">{result.faults[0].name}</h2>
                       </div>
@@ -396,7 +398,7 @@ export default function Diagnosis() {
 
                 <div className="glass card-shadow rounded-2xl p-5">
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                    Probable Causes
+                    {t("causes")}
                   </h3>
                   <ul className="mt-3 space-y-2">
                     {result.probable_causes.map((c) => (
@@ -410,7 +412,7 @@ export default function Diagnosis() {
 
                 <div className="glass card-shadow rounded-2xl p-5">
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                    Recommended Actions
+                    {t("actions")}
                   </h3>
                   <ul className="mt-3 space-y-2">
                     {result.recommended_actions.map((a, i) => (
@@ -455,7 +457,7 @@ export default function Diagnosis() {
             >
               <div className="flex items-center gap-2">
                 <Wrench className="h-5 w-5 text-secondary" />
-                <h3 className="text-xl font-semibold">Step-by-Step Repair Guide</h3>
+                <h3 className="text-xl font-semibold">{t("repairGuide")}</h3>
               </div>
               <p className="text-sm text-muted-foreground">
                 Follow these AI repair steps in order.
@@ -530,7 +532,7 @@ export default function Diagnosis() {
                           diffTone[g.difficulty],
                         )}
                       >
-                        {g.difficulty}
+                        {g.difficulty === "Easy" ? t("diy") : t("professional")}
                       </span>
                       <div className="flex items-center gap-3 text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
@@ -551,7 +553,7 @@ export default function Diagnosis() {
             >
               <div className="flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-secondary" />
-                <h3 className="text-lg font-semibold">Nearby Mechanics</h3>
+                <h3 className="text-lg font-semibold">{t("mechanicsNear")}</h3>
               </div>
               <p className="text-sm text-muted-foreground">
                 Tap a card to fly the map to that workshop.
@@ -653,14 +655,20 @@ export default function Diagnosis() {
             </section>
           </>
         )}
-        {result && diagnosisId && (
+        {result && (
           <>
             <button
-              onClick={() => setChatOpen(true)}
+              onClick={() => {
+                if (isGuestUser()) {
+                  toast.info(t("createAccount") + " to chat with the V-DAS Assistant!");
+                  return;
+                }
+                setChatOpen(true);
+              }}
               className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 h-14 px-5 rounded-2xl gradient-bg text-white font-semibold shadow-2xl shadow-primary/30 transition-all hover:brightness-110 hover:scale-105 active:scale-95 chat-fab-pulse"
             >
               <MessageCircle className="h-5 w-5" />
-              <span className="hidden sm:inline">Ask AI</span>
+              <span className="hidden sm:inline">{t("askAi")}</span>
             </button>
             <ChatPanel
               diagnosisId={diagnosisId}

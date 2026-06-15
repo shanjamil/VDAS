@@ -45,7 +45,29 @@ def first_serializer_error(serializer):
     return str(next(iter(serializer.errors.values()))[0])
 
 
-def build_diagnosis_prompt(symptom):
+def build_diagnosis_prompt(symptom, language="en"):
+    # Language instruction injected based on the requested language
+    lang_inst = ""
+    if language == "ur":
+        lang_inst = """
+- Language Rule: You MUST write the text contents of the fields ("fault_name", "probable_causes", "recommended_actions", and "repair_steps") in the Urdu language (اردو) using standard Arabic/Persian script (Nasta'liq).
+- Urdu Quality Rule: Do NOT repeat sentences or phrases. Keep the wording clear, varied, and natural. Make sure the "repair_steps" explain the mechanical procedure clearly in Urdu, step-by-step, without duplicating phrases across steps. The component_id must remain a lowercase English string identifier.
+"""
+    elif language == "ar":
+        lang_inst = """
+- Language Rule: You MUST write the text contents of the fields ("fault_name", "probable_causes", "recommended_actions", and "repair_steps") in the Arabic language (العربية) using standard Arabic script.
+- Arabic Quality Rule: Keep the wording clear, varied, and natural, without repeating instructions or sentences. The component_id must remain a lowercase English string identifier.
+"""
+    elif language == "roman-ur":
+        lang_inst = """
+- Language Rule: You MUST write the text contents of the fields ("fault_name", "probable_causes", "recommended_actions", and "repair_steps") in Roman Urdu (Urdu language written in English/Latin letters, e.g., "Engine start nahi ho raha aur aawaz aa rahi hai", "Brakes ghis gaye hain", "Brake pads ko tabdeel karein").
+- Roman Urdu Quality Rule: Keep the wording clear, varied, and natural, without repeating instructions. The component_id must remain a lowercase English string identifier.
+"""
+    else:
+        lang_inst = """
+- Language Rule: Write the text contents in standard English.
+"""
+
     return f"""
 You are the advanced diagnostic engine and master mechanic for V-DAS, a vehicle diagnostic and assistance system.
 Analyze this vehicle symptom and return one likely diagnosis with a highly detailed repair guide.
@@ -69,8 +91,9 @@ Rules:
 - repair_difficulty must be either "DIY" or "Professional".
 - component_id must be a short frontend-friendly identifier such as "brakes", "engine", "battery", "transmission", "cooling", "exhaust", "suspension", or "unknown".
 - probable_causes, recommended_actions, and repair_steps must be non-empty arrays of strings.
-- repair_steps MUST be highly detailed, comprehensive, and explanatory step-by-step instructions. Write them so that a beginner can easily follow them to repair the car. Each step must be long and descriptive.
-- Do not include markdown, code fences, comments, or extra text.
+- NO REPETITION RULE: Every item inside "probable_causes", "recommended_actions", and "repair_steps" must be completely unique, distinct, and provide different information. Do NOT repeat similar explanations or terms across items.
+- repair_steps MUST be highly detailed, comprehensive, and explanatory step-by-step instructions. Write them so that a beginner can easily follow them to repair the car. Each step must be long, descriptive, and provide new actions, not duplicates of previous steps.
+- Do not include markdown, code fences, comments, or extra text.{lang_inst}
 """.strip()
 
 
@@ -129,14 +152,14 @@ def validate_diagnosis_result(data):
     }
 
 
-def call_groq(symptom):
+def call_groq(symptom, language="en"):
     api_key = os.getenv("GROQ_API_KEY", "").strip()
     if not api_key:
         raise ProviderError("GROQ_API_KEY is not configured.")
 
     payload = {
         "model": os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
-        "temperature": 0.2,
+        "temperature": 0.4,
         "messages": [
             {
                 "role": "system",
@@ -144,7 +167,7 @@ def call_groq(symptom):
             },
             {
                 "role": "user",
-                "content": build_diagnosis_prompt(symptom),
+                "content": build_diagnosis_prompt(symptom, language),
             },
         ],
     }
@@ -184,7 +207,7 @@ def call_groq(symptom):
         raise ProviderError(f"Groq returned invalid diagnosis JSON: {error}")
 
 
-def call_gemini(symptom):
+def call_gemini(symptom, language="en"):
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise ProviderError("GEMINI_API_KEY is not configured.")
@@ -194,12 +217,12 @@ def call_gemini(symptom):
         model = genai.GenerativeModel(
             model_name=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"),
             generation_config={
-                "temperature": 0.2,
+                "temperature": 0.4,
                 "response_mime_type": "application/json",
             },
         )
         response = model.generate_content(
-            build_diagnosis_prompt(symptom),
+            build_diagnosis_prompt(symptom, language),
             request_options={"timeout": 30},
         )
         return validate_diagnosis_result(parse_gemini_json(response.text))
@@ -306,14 +329,15 @@ class DiagnoseView(APIView):
             )
 
         symptom = serializer.validated_data["symptom"]
+        language = serializer.validated_data.get("language", "en")
         provider_errors = []
 
         try:
-            result = call_groq(symptom)
+            result = call_groq(symptom, language)
         except ProviderError as error:
             provider_errors.append(str(error))
             try:
-                result = call_gemini(symptom)
+                result = call_gemini(symptom, language)
             except ProviderError as fallback_error:
                 provider_errors.append(str(fallback_error))
                 result = None
@@ -354,7 +378,7 @@ class HistoryView(APIView):
         )
 
 
-def build_chat_prompt(diagnosis_result, history, user_message):
+def build_chat_prompt(diagnosis_result, history, user_message, language="en"):
     """Build a prompt that includes diagnosis context and conversation history."""
     context_parts = [
         f"Fault: {diagnosis_result.get('fault_name', 'Unknown')}",
@@ -371,6 +395,17 @@ def build_chat_prompt(diagnosis_result, history, user_message):
         role_label = "User" if msg.role == "user" else "Assistant"
         conversation += f"{role_label}: {msg.content}\n"
 
+    # Injected language instruction for follow-up chat
+    lang_inst = ""
+    if language == "ur":
+        lang_inst = "You MUST write your response in the Urdu language (اردو) using standard Arabic/Persian script."
+    elif language == "ar":
+        lang_inst = "You MUST write your response in the Arabic language (العربية) using standard Arabic script."
+    elif language == "roman-ur":
+        lang_inst = "You MUST write your response in Roman Urdu (Urdu written in the English/Latin alphabet, e.g. 'Aap brake pads change kar lein', 'Aap ko mechanic ke paas jana chahiye')."
+    else:
+        lang_inst = "Write your response in standard English."
+
     return f"""
 You are V-DAS, an expert AI vehicle diagnostic assistant. You previously diagnosed a vehicle issue.
 Here is the diagnosis context:
@@ -382,6 +417,8 @@ Here is the diagnosis context:
 The user now asks a follow-up question. Provide a helpful, accurate, and concise answer.
 Keep your response focused and practical. Do not repeat the entire diagnosis unless asked.
 If the user asks about costs, give reasonable estimates. If about safety, be cautious and responsible.
+
+Language instruction: {lang_inst}
 
 User question: {user_message}
 """.strip()
@@ -473,6 +510,7 @@ class ChatView(APIView):
 
         diagnosis_id = serializer.validated_data["diagnosis_id"]
         user_message = serializer.validated_data["message"]
+        language = serializer.validated_data.get("language", "en")
 
         try:
             diagnosis = Diagnosis.objects.get(id=diagnosis_id, user=request.user)
@@ -486,7 +524,7 @@ class ChatView(APIView):
         history = list(diagnosis.messages.all()[:20])
 
         # Build the prompt with diagnosis context + conversation history
-        prompt = build_chat_prompt(diagnosis.result, history, user_message)
+        prompt = build_chat_prompt(diagnosis.result, history, user_message, language)
 
         # Try Groq first, fall back to Gemini
         provider_errors = []

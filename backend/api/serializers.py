@@ -35,6 +35,7 @@ class LoginSerializer(serializers.Serializer):
 
 class DiagnosisRequestSerializer(serializers.Serializer):
     symptom = serializers.CharField(min_length=5, max_length=1000, trim_whitespace=True)
+    language = serializers.CharField(default="en", required=False)
 
 
 class DiagnosisHistorySerializer(serializers.ModelSerializer):
@@ -46,6 +47,7 @@ class DiagnosisHistorySerializer(serializers.ModelSerializer):
 class ChatRequestSerializer(serializers.Serializer):
     diagnosis_id = serializers.IntegerField()
     message = serializers.CharField(min_length=1, max_length=2000, trim_whitespace=True)
+    language = serializers.CharField(default="en", required=False)
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):

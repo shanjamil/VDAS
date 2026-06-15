@@ -4,24 +4,21 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { CarViewer } from "@/components/CarViewer";
 import { VoiceInput } from "@/components/VoiceInput";
-import { isAuthedStrict } from "@/lib/auth";
+import { isAuthedOrGuest } from "@/lib/auth";
 import { HomeSkeleton } from "@/components/Skeletons";
+import { useLanguage } from "@/lib/LanguageContext";
 import { toast } from "sonner";
 
-const SUGGESTIONS = [
-  "Squealing noise when braking",
-  "Engine misfires on cold start",
-  "AC blowing warm air",
-  "Steering wheel vibrates at high speed",
-];
+const SUGGESTIONS = ["suggestion1", "suggestion2", "suggestion3", "suggestion4"];
 
 export default function Home() {
   const [symptom, setSymptom] = useState("");
   const [ready, setReady] = useState(false);
+  const { language, t } = useLanguage();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAuthedStrict()) {
+    if (!isAuthedOrGuest()) {
       navigate("/login");
       return;
     }
@@ -45,7 +42,7 @@ export default function Home() {
   const start = () => {
     const text = symptom.trim();
     if (!text) {
-      toast.error("Describe a symptom first");
+      toast.error(t("describeSymptomFirst"));
       return;
     }
     sessionStorage.setItem("vdas:symptom", text);
@@ -54,6 +51,8 @@ export default function Home() {
   };
 
   if (!ready) return <HomeSkeleton />;
+
+  const isRtl = language === "ur" || language === "ar";
 
   return (
     <div className="min-h-svh flex flex-col bg-background overflow-hidden">
@@ -69,14 +68,14 @@ export default function Home() {
           >
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary mb-5 lg:mb-6">
-                <Sparkles className="h-3.5 w-3.5" /> AI Diagnostic Engine
+                <Sparkles className="h-3.5 w-3.5" /> {t("aiEngine")}
               </span>
               <h1 className="text-4xl lg:text-5xl lg:leading-[1.1] font-extrabold tracking-tight">
-                What's troubling <br className="hidden lg:block" />
-                <span className="gradient-text">your car?</span>
+                {t("whatTroubling")} <br className="hidden lg:block" />
+                <span className="gradient-text">{t("yourCar")}</span>
               </h1>
               <p className="mt-4 text-base md:text-lg text-muted-foreground">
-                Describe the symptoms in your own words - or tap the mic and speak. We'll diagnose it instantly.
+                {t("homeSubtitle")}
               </p>
             </div>
           </section>
@@ -100,9 +99,11 @@ export default function Home() {
             <textarea
               value={symptom}
               onChange={(e) => setSymptom(e.target.value)}
-              placeholder="e.g. There's a high-pitched squeal when I press the brakes..."
+              placeholder={t("symptomPlaceholder")}
               rows={1}
-              className="w-full resize-none bg-transparent text-base md:text-lg placeholder:text-muted-foreground focus:outline-none px-2 py-1"
+              className={`w-full resize-none bg-transparent text-base md:text-lg placeholder:text-muted-foreground focus:outline-none px-2 py-1 ${
+                isRtl ? "text-right" : "text-left"
+              }`}
             />
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
               <VoiceInput onTranscript={setSymptom} />
@@ -110,24 +111,27 @@ export default function Home() {
                 onClick={start}
                 className="inline-flex items-center gap-2 h-12 px-6 rounded-xl gradient-bg text-white font-semibold shadow-[0_8px_24px_-8px_hsl(244_100%_70%_/_0.6)] transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95"
               >
-                Start Diagnosis
-                <ArrowRight className="h-4 w-4" />
+                {t("startDiagnosis")}
+                <ArrowRight className={`h-4 w-4 ${isRtl ? "rotate-180" : ""}`} />
               </button>
             </div>
           </div>
 
           <div className="mt-6 lg:mt-8 flex flex-col items-center justify-center">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">Try a suggestion</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">{t("trySuggestion")}</p>
             <div className="flex flex-wrap items-center justify-center gap-3">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSymptom(s)}
-                  className="rounded-full border border-border bg-card px-4 py-2 text-xs md:text-sm text-muted-foreground transition-all hover:border-primary/50 hover:text-foreground hover:-translate-y-0.5"
-                >
-                  {s}
-                </button>
-              ))}
+              {SUGGESTIONS.map((key) => {
+                const text = t(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSymptom(text)}
+                    className="rounded-full border border-border bg-card px-4 py-2 text-xs md:text-sm text-muted-foreground transition-all hover:border-primary/50 hover:text-foreground hover:-translate-y-0.5"
+                  >
+                    {text}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </section>

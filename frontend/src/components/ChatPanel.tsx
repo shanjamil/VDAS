@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/auth";
+import { useLanguage } from "@/lib/LanguageContext";
 import { toast } from "sonner";
 
 const API_BASE_URL =
@@ -47,6 +48,7 @@ export function ChatPanel({
   const [error, setError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { language, t } = useLanguage();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -133,6 +135,7 @@ export function ChatPanel({
         body: JSON.stringify({
           diagnosis_id: diagnosisId,
           message: messageText,
+          language: language,
         }),
       });
 
@@ -209,7 +212,7 @@ export function ChatPanel({
                   V-DAS Assistant
                 </h3>
                 <p className="text-[11px] text-white/70">
-                  Ask follow-up questions
+                  {t("chatPlaceholder")}
                 </p>
               </div>
             </div>
@@ -232,7 +235,7 @@ export function ChatPanel({
                   <Bot className="h-8 w-8 text-primary" />
                 </div>
                 <h4 className="text-base font-semibold mb-1">
-                  Ask me anything!
+                  {t("askAi")}
                 </h4>
                 <p className="text-xs text-muted-foreground max-w-[260px] mb-6">
                   I have full context of your diagnosis. Ask about costs,
@@ -330,10 +333,13 @@ export function ChatPanel({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask a follow-up question..."
+                placeholder={t("chatPlaceholder")}
                 rows={1}
                 disabled={sending}
-                className="flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none py-2 max-h-24 disabled:opacity-50"
+                className={cn(
+                  "flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none py-2 max-h-24 disabled:opacity-50",
+                  (language === "ur" || language === "ar") ? "text-right" : "text-left"
+                )}
               />
               <button
                 onClick={() => sendMessage()}

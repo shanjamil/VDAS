@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
 import { isAuthedStrict, signOut } from "@/lib/auth";
 import { ArrowLeft, Clock, AlertTriangle, Calendar, ChevronRight } from "lucide-react";
+import { useLanguage } from "@/lib/LanguageContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -24,9 +25,11 @@ export default function History() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     if (!isAuthedStrict()) {
+      toast.error("Please log in or register to view your history.");
       navigate("/login");
       return;
     }
@@ -70,13 +73,13 @@ export default function History() {
           onClick={() => navigate("/home")}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Home
+          <ArrowLeft className={`h-4 w-4 ${language === "ur" || language === "ar" ? "rotate-180" : ""}`} /> {t("backToHome")}
         </button>
 
         <div className="mt-6 flex items-center justify-between animate-slide-up" style={{ animationDelay: "40ms", animationFillMode: "backwards" }}>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Diagnosis History</h1>
-            <p className="mt-2 text-muted-foreground">Review your previous vehicle assessments.</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t("diagnosisHistory")}</h1>
+            <p className="mt-2 text-muted-foreground">{t("historySubtitle")}</p>
           </div>
           <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary/20 text-secondary">
             <Clock className="h-6 w-6" />
@@ -99,15 +102,15 @@ export default function History() {
             <div className="h-20 w-20 rounded-full bg-elevated flex items-center justify-center text-muted-foreground mb-4">
               <Clock className="h-8 w-8" />
             </div>
-            <h3 className="text-lg font-semibold">No history found</h3>
+            <h3 className="text-lg font-semibold">{t("noHistory")}</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              You haven't made any diagnoses yet. Head to the home page to start your first vehicle assessment.
+              {t("noHistorySubtitle")}
             </p>
             <button
               onClick={() => navigate("/home")}
               className="mt-6 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
-              Start Diagnosis
+              {t("startDiagnosis")}
             </button>
           </div>
         ) : (
@@ -132,7 +135,7 @@ export default function History() {
                       "font-medium",
                       item.result.confidence >= 80 ? "text-danger" : "text-warning"
                     )}>
-                      {item.result.confidence}% Confidence
+                      {item.result.confidence}% {t("confidence")}
                     </span>
                   </div>
                   <h3 className="text-lg font-semibold text-foreground mb-1 line-clamp-1">
@@ -145,14 +148,14 @@ export default function History() {
                 
                 <div className="flex items-center gap-4 sm:pl-4 sm:border-l border-border/50">
                   <div className="text-left sm:text-right">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Difficulty</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{t("difficulty")}</p>
                     <span className={cn(
                       "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border",
                       item.result.repair_difficulty === "DIY" 
                         ? "bg-success/15 text-success border-success/30" 
                         : "bg-danger/15 text-danger border-danger/30"
                     )}>
-                      {item.result.repair_difficulty}
+                      {item.result.repair_difficulty === "DIY" ? t("diy") : t("professional")}
                     </span>
                   </div>
                   <button 
@@ -163,7 +166,7 @@ export default function History() {
                       navigate("/diagnosis");
                     }}
                     className="h-10 w-10 rounded-full bg-elevated flex items-center justify-center text-foreground transition-transform group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground shrink-0"
-                    title="Re-run diagnosis"
+                    title={t("reRunDiagnosis")}
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>

@@ -59,7 +59,7 @@ const persistAuth = (payload: LoginResponse["data"]) => {
 export const isAuthed = () => {
   if (!isBrowser()) return true;
   try {
-    return Boolean(localStorage.getItem(ACCESS_TOKEN_KEY));
+    return Boolean(localStorage.getItem(ACCESS_TOKEN_KEY)) || localStorage.getItem("vdas:guest") === "true";
   } catch {
     return false;
   }
@@ -69,6 +69,24 @@ export const isAuthedStrict = () => {
   if (!isBrowser()) return false;
   try {
     return Boolean(localStorage.getItem(ACCESS_TOKEN_KEY));
+  } catch {
+    return false;
+  }
+};
+
+export const isAuthedOrGuest = () => {
+  if (!isBrowser()) return false;
+  try {
+    return Boolean(localStorage.getItem(ACCESS_TOKEN_KEY)) || localStorage.getItem("vdas:guest") === "true";
+  } catch {
+    return false;
+  }
+};
+
+export const isGuestUser = () => {
+  if (!isBrowser()) return false;
+  try {
+    return localStorage.getItem("vdas:guest") === "true";
   } catch {
     return false;
   }
@@ -97,6 +115,8 @@ export const signIn = async (email: string, password: string) => {
     throw new Error(message);
   }
 
+  // Clear guest status if they log in
+  localStorage.removeItem("vdas:guest");
   persistAuth(payload.data);
 
   return payload.data;
@@ -126,6 +146,8 @@ export const signUp = async (name: string, email: string, password: string) => {
     throw new Error(message);
   }
 
+  // Clear guest status if they register
+  localStorage.removeItem("vdas:guest");
   return payload.data;
 };
 
@@ -136,5 +158,6 @@ export const signOut = () => {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem("vdas:guest");
   } catch {}
 };

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useLanguage } from "@/lib/LanguageContext";
 
 // Minimal SpeechRecognition typing
 type AnyRecognition = any;
@@ -15,6 +16,7 @@ export const VoiceInput = ({
   const [supported, setSupported] = useState(true);
   const recRef = useRef<AnyRecognition | null>(null);
   const finalTextRef = useRef("");
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     const SR =
@@ -26,7 +28,15 @@ export const VoiceInput = ({
     const rec = new SR();
     rec.continuous = false;
     rec.interimResults = true;
-    rec.lang = "en-US";
+    
+    // Dynamically set speech language locale
+    if (language === "ur" || language === "roman-ur") {
+      rec.lang = "ur-PK";
+    } else if (language === "ar") {
+      rec.lang = "ar-SA";
+    } else {
+      rec.lang = "en-US";
+    }
     
     rec.onstart = () => {
       finalTextRef.current = "";
@@ -50,11 +60,11 @@ export const VoiceInput = ({
     return () => {
       try { rec.stop(); } catch {}
     };
-  }, [onTranscript]);
+  }, [onTranscript, language]);
 
   const toggle = () => {
     if (!supported) {
-      toast.error("Voice input not supported in this browser");
+      toast.error(t("voiceNotSupported"));
       return;
     }
     if (recording) {
@@ -85,11 +95,11 @@ export const VoiceInput = ({
       {recording ? (
         <div className="flex items-center gap-2">
           <Waveform />
-          <span className="text-xs text-danger font-medium">Listening...</span>
+          <span className="text-xs text-danger font-medium">{t("listening")}</span>
         </div>
       ) : (
         <span className="text-xs text-muted-foreground">
-          {supported ? "Tap to dictate" : "Voice not supported"}
+          {supported ? t("tapToDictate") : t("voiceNotSupported")}
         </span>
       )}
     </div>

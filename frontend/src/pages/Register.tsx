@@ -28,6 +28,12 @@ export default function Register() {
 
   if (!mounted) return <LoginSkeleton />;
 
+  const continueAsGuest = () => {
+    localStorage.setItem("vdas:guest", "true");
+    setLeaving(true);
+    window.setTimeout(() => navigate("/home"), 220);
+  };
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const next: typeof errors = {};
@@ -187,6 +193,14 @@ export default function Register() {
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Creating account..." : "Create Account"}
+              </button>
+
+              <button
+                type="button"
+                onClick={continueAsGuest}
+                className="w-full h-11 rounded-xl border border-border bg-card text-foreground font-semibold inline-flex items-center justify-center gap-2 transition-all hover:border-primary/50 hover:bg-elevated/40 hover:scale-[1.02] active:scale-95"
+              >
+                Continue as Guest
               </button>
 
               <p className="pt-2 text-center text-sm text-muted-foreground">
