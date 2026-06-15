@@ -239,12 +239,17 @@ export default function Diagnosis() {
       setError("");
 
       try {
+        const token = localStorage.getItem("vdas:accessToken");
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
         const response = await fetch(`${API_BASE_URL}/api/diagnose/`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("vdas:accessToken")}`,
-          },
+          headers,
           body: JSON.stringify({ symptom: symptom.trim(), language: language }),
           signal: controller.signal,
         });
