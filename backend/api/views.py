@@ -895,14 +895,6 @@ class BookingView(APIView):
         from decimal import Decimal
         booking_fee = Decimal("1000.00")
         user = request.user
-        if user.wallet_balance < booking_fee:
-            return Response(
-                {"status": "error", "message": "Insufficient funds in your simulated wallet. Booking fee is 1,000 PKR."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user.wallet_balance -= booking_fee
-        user.save()
 
         booking = Booking.objects.create(
             user=user,
@@ -975,13 +967,9 @@ class AdminDeleteBookingView(APIView):
             )
         try:
             booking = Booking.objects.get(pk=pk)
-            user = booking.user
-            user.wallet_balance += booking.amount
-            user.save()
-
             booking.delete()
             return Response(
-                {"status": "success", "message": f"Booking {pk} deleted successfully. Wallet refunded."},
+                {"status": "success", "message": f"Booking {pk} deleted successfully."},
                 status=status.HTTP_200_OK
             )
         except Booking.DoesNotExist:

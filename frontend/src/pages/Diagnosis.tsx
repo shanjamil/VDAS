@@ -282,12 +282,6 @@ export default function Diagnosis() {
 
       setBookingInvoice(apiInvoice);
 
-      const currentBalance = parseFloat(localStorage.getItem("vdas:wallet_balance") || "0");
-      const newBalance = currentBalance - 1000;
-      localStorage.setItem("vdas:wallet_balance", String(newBalance));
-
-      window.dispatchEvent(new Event("vdas:wallet_update"));
-
       toast.success("Payment successful!");
       setBookingStep(3);
     } catch (err: any) {
@@ -966,23 +960,10 @@ export default function Diagnosis() {
                     </div>
                   ) : (
                     <>
-                      <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">{t("walletBalance")}:</span>
-                        <span className="font-bold text-primary">
-                          {parseFloat(localStorage.getItem("vdas:wallet_balance") || "0").toLocaleString()} PKR
-                        </span>
+                      <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-muted-foreground flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-primary shrink-0" />
+                        <span>{t("depositFee")}</span>
                       </div>
-
-                      {parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000 ? (
-                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-xs text-red-400">
-                          {t("insufficientFunds")}
-                        </div>
-                      ) : (
-                        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-muted-foreground flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 text-primary shrink-0" />
-                          <span>{t("depositFee")}</span>
-                        </div>
-                      )}
 
                       {bookingError && (
                         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2.5 text-xs text-red-400">
@@ -1003,7 +984,6 @@ export default function Diagnosis() {
                             autoComplete="new-password"
                             value={cardHolder}
                             onChange={(e) => setCardHolder(e.target.value)}
-                            disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
                             className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
                           />
                         </div>
@@ -1036,7 +1016,6 @@ export default function Diagnosis() {
                                 setCardNumber(val);
                               }
                             }}
-                            disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
                             className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
                           />
                         </div>
@@ -1061,7 +1040,6 @@ export default function Diagnosis() {
                                 }
                                 setCardExpiry(val);
                               }}
-                              disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
                               className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
                             />
                           </div>
@@ -1078,7 +1056,6 @@ export default function Diagnosis() {
                               maxLength={3}
                               value={cardCvv}
                               onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ""))}
-                              disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
                               className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
                             />
                           </div>
@@ -1094,7 +1071,7 @@ export default function Diagnosis() {
                         </button>
                         <button
                           onClick={handleProcessPayment}
-                          disabled={bookingLoading || parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                          disabled={bookingLoading}
                           className="flex-1 py-2.5 rounded-xl gradient-bg text-sm font-semibold text-white hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                         >
                           {t("payBookingFee")}

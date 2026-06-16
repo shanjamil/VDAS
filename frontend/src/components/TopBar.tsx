@@ -1,4 +1,4 @@
-import { LogOut, LogIn, History, Globe, ShieldAlert, CreditCard } from "lucide-react";
+import { LogOut, LogIn, History, Globe, ShieldAlert } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Logo } from "@/components/Logo";
@@ -15,51 +15,7 @@ export const TopBar = () => {
   const { language, setLanguage, t } = useLanguage();
   const isGuest = isGuestUser();
   const isAdmin = isAdminUser();
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-
   const isHomePage = location.pathname === "/home" || location.pathname === "/";
-
-  useEffect(() => {
-    if (isGuest) return;
-
-    const updateBalance = () => {
-      const balance = localStorage.getItem("vdas:wallet_balance");
-      if (balance !== null) {
-        setWalletBalance(parseFloat(balance));
-      }
-    };
-
-    updateBalance();
-    window.addEventListener("vdas:wallet_update", updateBalance);
-    window.addEventListener("storage", updateBalance);
-
-    const fetchWallet = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/wallet/`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("vdas:accessToken")}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.status === "success") {
-            const newBal = data.data.wallet_balance;
-            localStorage.setItem("vdas:wallet_balance", String(newBal));
-            setWalletBalance(newBal);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch wallet", e);
-      }
-    };
-
-    fetchWallet();
-
-    return () => {
-      window.removeEventListener("vdas:wallet_update", updateBalance);
-      window.removeEventListener("storage", updateBalance);
-    };
-  }, [isGuest]);
 
   const handleLogout = () => {
     signOut();
@@ -96,13 +52,6 @@ export const TopBar = () => {
                 <option value="roman-ur">Roman Urdu</option>
                 <option value="ar">العربية (Arabic)</option>
               </select>
-            </div>
-          )}
-
-          {!isGuest && walletBalance !== null && (
-            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs sm:text-sm font-semibold text-foreground">
-              <CreditCard className="h-4 w-4 text-primary shrink-0" />
-              <span>{t("walletBalance")}: {walletBalance.toLocaleString()} PKR</span>
             </div>
           )}
 
