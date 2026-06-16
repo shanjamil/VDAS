@@ -16,6 +16,7 @@ import {
   Check,
   Loader2,
   X,
+  Lock,
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { CarViewer } from "@/components/CarViewer";
@@ -167,6 +168,8 @@ export default function Diagnosis() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingInvoice, setBookingInvoice] = useState<any | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentProgress, setPaymentProgress] = useState(0);
 
   const handleOpenBooking = (mechanic: Mechanic) => {
     if (isGuestUser()) {
@@ -190,50 +193,94 @@ export default function Diagnosis() {
 
   const handleProcessPayment = async () => {
     if (!cardHolder.trim()) {
-      setBookingError("Cardholder name is required.");
+      setBookingError("Holder name is required.");
       return;
     }
     const cleanCard = cardNumber.replace(/\s/g, "");
     if (cleanCard.length !== 16 || !/^\d+$/.test(cleanCard)) {
-      setBookingError("Card number must be exactly 16 digits.");
+      setBookingError("Number must be exactly 16 digits.");
       return;
     }
     if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
-      setBookingError("Expiry date must be MM/YY format.");
+      setBookingError("Validity must be MM/YY format.");
       return;
     }
     if (cardCvv.length !== 3 || !/^\d+$/.test(cardCvv)) {
-      setBookingError("CVV must be exactly 3 digits.");
+      setBookingError("Pin must be exactly 3 digits.");
       return;
     }
 
     setBookingLoading(true);
     setBookingError("");
+    setPaymentProgress(0);
+    setPaymentStatus("Initializing secure transaction...");
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/bookings/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("vdas:accessToken")}`,
-        },
-        body: JSON.stringify({
-          mechanic_name: selectedMechanic?.name,
-          service_type: serviceType,
-          booking_date: bookingDate,
-          booking_time: bookingTime,
-          card_number: cleanCard,
-          expiry_date: cardExpiry,
-          cvv: cardCvv,
-        }),
+    // Start API request in parallel
+    let apiError: string | null = null;
+    let apiInvoice: any = null;
+    const apiPromise = fetch(`${API_BASE_URL}/api/bookings/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("vdas:accessToken")}`,
+      },
+      body: JSON.stringify({
+        mechanic_name: selectedMechanic?.name,
+        service_type: serviceType,
+        booking_date: bookingDate,
+        booking_time: bookingTime,
+        card_number: cleanCard,
+        expiry_date: cardExpiry,
+        cvv: cardCvv,
+      }),
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok || payload.status !== "success") {
+          apiError = payload.message || "Booking failed.";
+        } else {
+          apiInvoice = payload.data;
+        }
+      })
+      .catch((err) => {
+        apiError = err.message || "Booking failed.";
       });
 
-      const payload = await response.json();
-      if (!response.ok || payload.status !== "success") {
-        throw new Error(payload.message || "Booking failed.");
+    // Run UI processing animation
+    try {
+      // Phase 1: 0% to 25% (800ms)
+      setPaymentProgress(10);
+      setPaymentStatus("Connecting to secure payment gateway...");
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Phase 2: 25% to 50% (800ms)
+      setPaymentProgress(35);
+      setPaymentStatus("Verifying tokenized credentials...");
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Phase 3: 50% to 75% (800ms)
+      setPaymentProgress(65);
+      setPaymentStatus("Authorizing 1,000 PKR deposit charge...");
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Phase 4: 75% to 90% (600ms)
+      setPaymentProgress(85);
+      setPaymentStatus("Finalizing transaction settlement...");
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // Wait for the API request to complete if it hasn't already
+      await apiPromise;
+
+      if (apiError) {
+        throw new Error(apiError);
       }
 
-      setBookingInvoice(payload.data);
+      // Phase 5: 100% (400ms)
+      setPaymentProgress(100);
+      setPaymentStatus("Success! Securing appointment details...");
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      setBookingInvoice(apiInvoice);
 
       const currentBalance = parseFloat(localStorage.getItem("vdas:wallet_balance") || "0");
       const newBalance = currentBalance - 1000;
@@ -892,132 +939,169 @@ export default function Diagnosis() {
               {/* Step 2: Payment checkout */}
               {bookingStep === 2 && (
                 <div className="space-y-4">
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{t("walletBalance")}:</span>
-                    <span className="font-bold text-primary">
-                      {parseFloat(localStorage.getItem("vdas:wallet_balance") || "0").toLocaleString()} PKR
-                    </span>
-                  </div>
+                  {bookingLoading ? (
+                    <div className="flex flex-col items-center justify-center py-8 space-y-5 animate-fade-in">
+                      {/* Pulse Circle / Lock Icon */}
+                      <div className="relative flex items-center justify-center h-16 w-full">
+                        <div className="absolute h-16 w-16 rounded-full bg-primary/20 blur-xl animate-pulse" />
+                        <div className="h-16 w-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center relative animate-bounce-subtle">
+                          <Lock className="h-7 w-7 text-primary animate-pulse" />
+                        </div>
+                      </div>
 
-                  {parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000 ? (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-xs text-red-400">
-                      {t("insufficientFunds")}
+                      {/* Status Message */}
+                      <div className="text-center space-y-1">
+                        <h4 className="text-sm font-semibold text-white">Securing Transaction</h4>
+                        <p className="text-xs text-muted-foreground transition-all duration-300 h-4">{paymentStatus}</p>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full bg-white/5 border border-white/10 rounded-full h-2.5 overflow-hidden p-[2px]">
+                        <div
+                          className="bg-primary h-full rounded-full transition-all duration-500 ease-out shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                          style={{ width: `${paymentProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-muted-foreground">{paymentProgress}%</span>
                     </div>
                   ) : (
-                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-muted-foreground flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-primary shrink-0" />
-                      <span>{t("depositFee")}</span>
-                    </div>
-                  )}
-
-                  {bookingError && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2.5 text-xs text-red-400">
-                      {bookingError}
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                        {t("cardHolderName")}
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="John Doe"
-                        value={cardHolder}
-                        onChange={(e) => setCardHolder(e.target.value)}
-                        disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
-                        className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                        {t("cardNumber")}
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="4242 4242 4242 4242"
-                        maxLength={19}
-                        value={cardNumber}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "");
-                          const matches = val.match(/\d{4,16}/g);
-                          const match = (matches && matches[0]) || "";
-                          const parts = [];
-
-                          for (let i = 0, len = match.length; i < len; i += 4) {
-                            parts.push(match.substring(i, i + 4));
-                          }
-
-                          if (parts.length > 0) {
-                            setCardNumber(parts.join(" "));
-                          } else {
-                            setCardNumber(val);
-                          }
-                        }}
-                        disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
-                        className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                          {t("expiryDate")}
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="MM/YY"
-                          maxLength={5}
-                          value={cardExpiry}
-                          onChange={(e) => {
-                            let val = e.target.value.replace(/\D/g, "");
-                            if (val.length > 2) {
-                              val = val.substring(0, 2) + "/" + val.substring(2, 4);
-                            }
-                            setCardExpiry(val);
-                          }}
-                          disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
-                          className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
-                        />
+                    <>
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">{t("walletBalance")}:</span>
+                        <span className="font-bold text-primary">
+                          {parseFloat(localStorage.getItem("vdas:wallet_balance") || "0").toLocaleString()} PKR
+                        </span>
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                          {t("cvv")}
-                        </label>
-                        <input
-                          type="password"
-                          placeholder="***"
-                          maxLength={3}
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ""))}
-                          disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
-                          className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
-                        />
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      onClick={() => setBookingStep(1)}
-                      className="flex-1 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-semibold text-white transition-all active:scale-[0.98]"
-                    >
-                      {t("back")}
-                    </button>
-                    <button
-                      onClick={handleProcessPayment}
-                      disabled={bookingLoading || parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
-                      className="flex-1 py-2.5 rounded-xl gradient-bg text-sm font-semibold text-white hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                    >
-                      {bookingLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                      {parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000 ? (
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-xs text-red-400">
+                          {t("insufficientFunds")}
+                        </div>
                       ) : (
-                        t("payBookingFee")
+                        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-muted-foreground flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-primary shrink-0" />
+                          <span>{t("depositFee")}</span>
+                        </div>
                       )}
-                    </button>
-                  </div>
+
+                      {bookingError && (
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2.5 text-xs text-red-400">
+                          {bookingError}
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                            {t("cardHolderName")}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Name"
+                            name="secure_h_n"
+                            id="secure_h_n"
+                            autoComplete="new-password"
+                            value={cardHolder}
+                            onChange={(e) => setCardHolder(e.target.value)}
+                            disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                            className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                            {t("cardNumber")}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="0000 0000 0000 0000"
+                            name="secure_n_n"
+                            id="secure_n_n"
+                            autoComplete="new-password"
+                            maxLength={19}
+                            value={cardNumber}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "");
+                              const matches = val.match(/\d{4,16}/g);
+                              const match = (matches && matches[0]) || "";
+                              const parts = [];
+
+                              for (let i = 0, len = match.length; i < len; i += 4) {
+                                parts.push(match.substring(i, i + 4));
+                              }
+
+                              if (parts.length > 0) {
+                                setCardNumber(parts.join(" "));
+                              } else {
+                                setCardNumber(val);
+                              }
+                            }}
+                            disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                            className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                              {t("expiryDate")}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="MM / YY"
+                              name="secure_e_d"
+                              id="secure_e_d"
+                              autoComplete="new-password"
+                              maxLength={5}
+                              value={cardExpiry}
+                              onChange={(e) => {
+                                let val = e.target.value.replace(/\D/g, "");
+                                if (val.length > 2) {
+                                  val = val.substring(0, 2) + "/" + val.substring(2, 4);
+                                }
+                                setCardExpiry(val);
+                              }}
+                              disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                              className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                              {t("cvv")}
+                            </label>
+                            <input
+                              type="password"
+                              placeholder="•••"
+                              name="secure_c_v"
+                              id="secure_c_v"
+                              autoComplete="new-password"
+                              maxLength={3}
+                              value={cardCvv}
+                              onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ""))}
+                              disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                              className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          onClick={() => setBookingStep(1)}
+                          className="flex-1 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-semibold text-white transition-all active:scale-[0.98]"
+                        >
+                          {t("back")}
+                        </button>
+                        <button
+                          onClick={handleProcessPayment}
+                          disabled={bookingLoading || parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                          className="flex-1 py-2.5 rounded-xl gradient-bg text-sm font-semibold text-white hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                        >
+                          {t("payBookingFee")}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

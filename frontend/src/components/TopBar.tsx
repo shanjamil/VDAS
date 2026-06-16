@@ -1,5 +1,5 @@
 import { LogOut, LogIn, History, Globe, ShieldAlert, CreditCard } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Logo } from "@/components/Logo";
 import { signOut, isGuestUser, isAdminUser } from "@/lib/auth";
@@ -11,10 +11,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000
 
 export const TopBar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language, setLanguage, t } = useLanguage();
   const isGuest = isGuestUser();
   const isAdmin = isAdminUser();
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  const isHomePage = location.pathname === "/home" || location.pathname === "/";
 
   useEffect(() => {
     if (isGuest) return;
@@ -79,20 +82,22 @@ export const TopBar = () => {
         <Logo />
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Language Switcher */}
-          <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-2 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:text-foreground">
-            <Globe className="h-4 w-4 shrink-0 text-muted-foreground/80" />
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as Language)}
-              className="bg-transparent font-medium text-xs sm:text-sm text-foreground focus:outline-none cursor-pointer pr-1"
-              dir="ltr"
-            >
-              <option value="en">English</option>
-              <option value="ur">اردو (Urdu)</option>
-              <option value="roman-ur">Roman Urdu</option>
-              <option value="ar">العربية (Arabic)</option>
-            </select>
-          </div>
+          {isHomePage && (
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-2 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:text-foreground">
+              <Globe className="h-4 w-4 shrink-0 text-muted-foreground/80" />
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+                className="bg-transparent font-medium text-xs sm:text-sm text-foreground focus:outline-none cursor-pointer pr-1"
+                dir="ltr"
+              >
+                <option value="en">English</option>
+                <option value="ur">اردو (Urdu)</option>
+                <option value="roman-ur">Roman Urdu</option>
+                <option value="ar">العربية (Arabic)</option>
+              </select>
+            </div>
+          )}
 
           {!isGuest && walletBalance !== null && (
             <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs sm:text-sm font-semibold text-foreground">
