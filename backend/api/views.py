@@ -723,8 +723,8 @@ out body center;
                 "specialties": specialties,
             })
             
-        # Ensure we always have at least 10 mechanics, generating fallback mock mechanics if needed
-        if len(mechanics) < 10:
+        # Ensure we always have at least 20 mechanics, generating fallback mock mechanics if needed
+        if len(mechanics) < 20:
             import random
             import math
             
@@ -744,7 +744,14 @@ out body center;
                 "Faisal Motors & Tuning",
                 "Gulshan Car Care Center",
                 "Clifton Auto Workshop",
-                "Lahore Motor Works"
+                "Lahore Motor Works",
+                "Karachi Precision Tuning",
+                "Islamabad Auto Experts",
+                "Jinnah Auto Care",
+                "Model Town Workshop",
+                "Cavalry Auto Repair",
+                "Johar Town Motors",
+                "DHA Motors Center"
             ]
             
             specialty_pools = [
@@ -758,7 +765,7 @@ out body center;
             used_names = set(m["name"] for m in mechanics)
             existing_count = len(mechanics)
             
-            for i in range(12 - existing_count):  # Generate up to 12 total
+            for i in range(22 - existing_count):  # Generate up to 22 total
                 available_names = [n for n in mock_names if n not in used_names]
                 if not available_names:
                     name = f"Workshop #{random.randint(100, 999)}"
@@ -799,7 +806,7 @@ out body center;
         mechanics.sort(key=lambda x: x["distance_km"])
         
         return Response(
-            {"status": "success", "data": mechanics[:10]},
+            {"status": "success", "data": mechanics[:20]},
             status=status.HTTP_200_OK
         )
 
