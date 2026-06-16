@@ -686,8 +686,8 @@ export default function Diagnosis() {
                   </div>
                 ) : (
                   <>
-                    <div className="lg:col-span-5 space-y-2">
-                      {mechanics.slice(0, 3).map((m) => (
+                    <div className="lg:col-span-5 space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                      {mechanics.map((m) => (
                         <button
                           key={m.id}
                           onClick={() => setActiveMechanicId(m.id)}
@@ -763,8 +763,8 @@ export default function Diagnosis() {
                     </div>
 
                     <div className="lg:col-span-7">
-                      <div className="glass card-shadow rounded-2xl overflow-hidden h-full min-h-[380px]">
-                        <MechanicsMap mechanics={mechanics.slice(0, 3)} activeId={activeMechanicId} userLocation={userLocation} />
+                      <div className="glass card-shadow rounded-2xl overflow-hidden h-full min-h-[500px]">
+                        <MechanicsMap mechanics={mechanics} activeId={activeMechanicId} userLocation={userLocation} />
                       </div>
                     </div>
                   </>
