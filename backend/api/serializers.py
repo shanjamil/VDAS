@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 
 User = get_user_model()
-from .models import ChatMessage, Diagnosis
+from .models import ChatMessage, Diagnosis, Booking
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -62,4 +62,22 @@ class AdminDiagnosisSerializer(serializers.ModelSerializer):
     class Meta:
         model = Diagnosis
         fields = ("id", "user_email", "symptom", "result", "created_at")
+
+
+class BookingSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = Booking
+        fields = (
+            "id",
+            "user_email",
+            "mechanic_name",
+            "service_type",
+            "booking_date",
+            "booking_time",
+            "amount",
+            "status",
+            "created_at",
+        )
 

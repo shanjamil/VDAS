@@ -11,6 +11,11 @@ import {
   Circle,
   MapPin,
   MessageCircle,
+  Calendar,
+  CreditCard,
+  Check,
+  Loader2,
+  X,
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { CarViewer } from "@/components/CarViewer";
@@ -148,6 +153,102 @@ export default function Diagnosis() {
   const [diagnosisId, setDiagnosisId] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [resultLanguage, setResultLanguage] = useState<string | null>(null);
+
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [selectedMechanic, setSelectedMechanic] = useState<Mechanic | null>(null);
+  const [bookingStep, setBookingStep] = useState(1);
+  const [bookingDate, setBookingDate] = useState("");
+  const [bookingTime, setBookingTime] = useState("10:00 AM");
+  const [serviceType, setServiceType] = useState("General Diagnostics");
+  const [cardHolder, setCardHolder] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [bookingInvoice, setBookingInvoice] = useState<any | null>(null);
+
+  const handleOpenBooking = (mechanic: Mechanic) => {
+    if (isGuestUser()) {
+      toast.info(t("createAccount") + " to book appointments!");
+      navigate("/login");
+      return;
+    }
+    setSelectedMechanic(mechanic);
+    setBookingStep(1);
+    setBookingDate(new Date(Date.now() + 86400000).toISOString().split("T")[0]); // tomorrow
+    setBookingTime("10:00 AM");
+    setServiceType("General Diagnostics");
+    setCardHolder("");
+    setCardNumber("");
+    setCardExpiry("");
+    setCardCvv("");
+    setBookingError("");
+    setBookingInvoice(null);
+    setBookingModalOpen(true);
+  };
+
+  const handleProcessPayment = async () => {
+    if (!cardHolder.trim()) {
+      setBookingError("Cardholder name is required.");
+      return;
+    }
+    const cleanCard = cardNumber.replace(/\s/g, "");
+    if (cleanCard.length !== 16 || !/^\d+$/.test(cleanCard)) {
+      setBookingError("Card number must be exactly 16 digits.");
+      return;
+    }
+    if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
+      setBookingError("Expiry date must be MM/YY format.");
+      return;
+    }
+    if (cardCvv.length !== 3 || !/^\d+$/.test(cardCvv)) {
+      setBookingError("CVV must be exactly 3 digits.");
+      return;
+    }
+
+    setBookingLoading(true);
+    setBookingError("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/bookings/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("vdas:accessToken")}`,
+        },
+        body: JSON.stringify({
+          mechanic_name: selectedMechanic?.name,
+          service_type: serviceType,
+          booking_date: bookingDate,
+          booking_time: bookingTime,
+          card_number: cleanCard,
+          expiry_date: cardExpiry,
+          cvv: cardCvv,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || payload.status !== "success") {
+        throw new Error(payload.message || "Booking failed.");
+      }
+
+      setBookingInvoice(payload.data);
+
+      const currentBalance = parseFloat(localStorage.getItem("vdas:wallet_balance") || "0");
+      const newBalance = currentBalance - 1000;
+      localStorage.setItem("vdas:wallet_balance", String(newBalance));
+
+      window.dispatchEvent(new Event("vdas:wallet_update"));
+
+      toast.success("Payment successful!");
+      setBookingStep(3);
+    } catch (err: any) {
+      setBookingError(err.message || "Booking failed.");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthedOrGuest()) {
@@ -648,6 +749,15 @@ export default function Diagnosis() {
                               <Navigation className="h-3.5 w-3.5" /> {t("directions")}
                             </button>
                           </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenBooking(m);
+                            }}
+                            className="mt-2 w-full inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-primary bg-primary/10 hover:bg-primary/20 text-xs font-medium text-primary hover:text-primary transition-all active:scale-95"
+                          >
+                            <Calendar className="h-3.5 w-3.5" /> {t("bookAppointment")}
+                          </button>
                         </button>
                       ))}
                     </div>
@@ -685,6 +795,317 @@ export default function Diagnosis() {
               onNavigateLogin={() => navigate("/login")}
             />
           </>
+        )}
+
+        {/* Booking & Mock Payment Modal */}
+        {bookingModalOpen && selectedMechanic && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="glass rounded-2xl w-full max-w-md overflow-hidden card-shadow border border-white/10 text-card-foreground p-6 relative flex flex-col gap-4 max-h-[95vh] overflow-y-auto">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  {bookingStep === 3 ? t("bookingSuccess") : t("bookAppointment")}
+                </h3>
+                <button
+                  onClick={() => setBookingModalOpen(false)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 transition-all text-muted-foreground hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Step 1: Appointment details */}
+              {bookingStep === 1 && (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-white mb-1">{selectedMechanic.name}</h4>
+                    <p className="text-xs text-muted-foreground">{selectedMechanic.address}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                      {t("serviceType")}
+                    </label>
+                    <select
+                      value={serviceType}
+                      onChange={(e) => setServiceType(e.target.value)}
+                      className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                    >
+                      <option value="General Diagnostics">General Diagnostics</option>
+                      <option value="Engine Repair">Engine Repair</option>
+                      <option value="Brake Service">Brake Service</option>
+                      <option value="AC/Heating Service">AC/Heating Service</option>
+                      <option value="Electrical Checkup">Electrical Checkup</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        {t("selectDate")}
+                      </label>
+                      <input
+                        type="date"
+                        value={bookingDate}
+                        onChange={(e) => setBookingDate(e.target.value)}
+                        min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+                        className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        {t("selectTime")}
+                      </label>
+                      <select
+                        value={bookingTime}
+                        onChange={(e) => setBookingTime(e.target.value)}
+                        className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                      >
+                        <option value="09:00 AM">09:00 AM</option>
+                        <option value="10:00 AM">10:00 AM</option>
+                        <option value="11:00 AM">11:00 AM</option>
+                        <option value="12:00 PM">12:00 PM</option>
+                        <option value="01:00 PM">01:00 PM</option>
+                        <option value="02:00 PM">02:00 PM</option>
+                        <option value="03:00 PM">03:00 PM</option>
+                        <option value="04:00 PM">04:00 PM</option>
+                        <option value="05:00 PM">05:00 PM</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-muted-foreground">
+                    <p>{t("depositFee")}</p>
+                  </div>
+
+                  <button
+                    onClick={() => setBookingStep(2)}
+                    className="w-full py-2.5 rounded-xl gradient-bg text-sm font-semibold text-white hover:brightness-110 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                  >
+                    {t("proceedToPayment")}
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2: Payment checkout */}
+              {bookingStep === 2 && (
+                <div className="space-y-4">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">{t("walletBalance")}:</span>
+                    <span className="font-bold text-primary">
+                      {parseFloat(localStorage.getItem("vdas:wallet_balance") || "0").toLocaleString()} PKR
+                    </span>
+                  </div>
+
+                  {parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000 ? (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-xs text-red-400">
+                      {t("insufficientFunds")}
+                    </div>
+                  ) : (
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-muted-foreground flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-primary shrink-0" />
+                      <span>{t("depositFee")}</span>
+                    </div>
+                  )}
+
+                  {bookingError && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2.5 text-xs text-red-400">
+                      {bookingError}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        {t("cardHolderName")}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="John Doe"
+                        value={cardHolder}
+                        onChange={(e) => setCardHolder(e.target.value)}
+                        disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                        className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        {t("cardNumber")}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="4242 4242 4242 4242"
+                        maxLength={19}
+                        value={cardNumber}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          const matches = val.match(/\d{4,16}/g);
+                          const match = (matches && matches[0]) || "";
+                          const parts = [];
+
+                          for (let i = 0, len = match.length; i < len; i += 4) {
+                            parts.push(match.substring(i, i + 4));
+                          }
+
+                          if (parts.length > 0) {
+                            setCardNumber(parts.join(" "));
+                          } else {
+                            setCardNumber(val);
+                          }
+                        }}
+                        disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                        className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                          {t("expiryDate")}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="MM/YY"
+                          maxLength={5}
+                          value={cardExpiry}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/\D/g, "");
+                            if (val.length > 2) {
+                              val = val.substring(0, 2) + "/" + val.substring(2, 4);
+                            }
+                            setCardExpiry(val);
+                          }}
+                          disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                          className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                          {t("cvv")}
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="***"
+                          maxLength={3}
+                          value={cardCvv}
+                          onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ""))}
+                          disabled={parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                          className="w-full bg-elevated border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setBookingStep(1)}
+                      className="flex-1 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-semibold text-white transition-all active:scale-[0.98]"
+                    >
+                      {t("back")}
+                    </button>
+                    <button
+                      onClick={handleProcessPayment}
+                      disabled={bookingLoading || parseFloat(localStorage.getItem("vdas:wallet_balance") || "0") < 1000}
+                      className="flex-1 py-2.5 rounded-xl gradient-bg text-sm font-semibold text-white hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                    >
+                      {bookingLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        t("payBookingFee")
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Booking Success receipt download */}
+              {bookingStep === 3 && bookingInvoice && (
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center justify-center py-4 text-center">
+                    <div className="h-12 w-12 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center mb-3">
+                      <Check className="h-6 w-6 text-green-400" />
+                    </div>
+                    <h4 className="text-base font-bold text-white">{t("bookingSuccess")}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Receipt Code: <span className="font-mono text-primary">{bookingInvoice.booking_reference}</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-elevated border border-white/10 rounded-xl p-4 space-y-2.5 text-xs text-card-foreground">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Mechanic:</span>
+                      <span className="font-semibold text-white">{bookingInvoice.mechanic_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Service:</span>
+                      <span className="font-semibold text-white">{bookingInvoice.service_type}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Date:</span>
+                      <span className="font-semibold text-white">{bookingInvoice.booking_date}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Time:</span>
+                      <span className="font-semibold text-white">{bookingInvoice.booking_time}</span>
+                    </div>
+                    <div className="border-t border-white/10 pt-2 flex justify-between">
+                      <span className="text-muted-foreground">Deposit Paid:</span>
+                      <span className="font-semibold text-primary">1,000 PKR</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => {
+                        const receiptText = `-------------------------------------------
+V-DAS APPOINTMENT BOOKING RECEIPT
+-------------------------------------------
+Reference:   ${bookingInvoice.booking_reference}
+Status:      CONFIRMED
+Date Booked: ${new Date(bookingInvoice.created_at).toLocaleString()}
+
+MECHANIC DETAILS
+Name:        ${bookingInvoice.mechanic_name}
+
+SERVICE DETAILS
+Type:        ${bookingInvoice.service_type}
+Date:        ${bookingInvoice.booking_date}
+Time:        ${bookingInvoice.booking_time}
+
+TRANSACTION DETAILS
+Deposit Fee: 1,000.00 PKR (Paid)
+Payment:     Simulated User Wallet
+-------------------------------------------
+Thank you for booking with V-DAS!
+-------------------------------------------`;
+                        const blob = new Blob([receiptText], { type: "text/plain" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `vdas-booking-${bookingInvoice.booking_reference}.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="flex-1 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-semibold text-white transition-all active:scale-[0.98]"
+                    >
+                      {t("downloadReceipt")}
+                    </button>
+                    <button
+                      onClick={() => setBookingModalOpen(false)}
+                      className="flex-1 py-2.5 rounded-xl gradient-bg text-sm font-semibold text-white hover:brightness-110 transition-all active:scale-[0.98]"
+                    >
+                      {t("close")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </div>

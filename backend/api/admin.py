@@ -1,18 +1,18 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import User, Diagnosis, ChatMessage
+from .models import User, Diagnosis, ChatMessage, Booking
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     ordering = ("id",)
-    list_display = ("email", "name", "is_staff", "is_active")
+    list_display = ("email", "name", "is_staff", "is_active", "wallet_balance")
     search_fields = ("email", "name")
 
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal info", {"fields": ("name",)}),
+        ("Personal info", {"fields": ("name", "wallet_balance")}),
         ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Important dates", {"fields": ("last_login",)}),
     )
@@ -48,3 +48,10 @@ class ChatMessageAdmin(admin.ModelAdmin):
     def content_preview(self, obj):
         return obj.content[:50] + "..." if len(obj.content) > 50 else obj.content
     content_preview.short_description = "Message Preview"
+
+
+@admin.register(Booking)
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "mechanic_name", "service_type", "booking_date", "booking_time", "amount", "status", "created_at")
+    search_fields = ("mechanic_name", "user__email", "user__name")
+    list_filter = ("status", "booking_date", "created_at")

@@ -9,6 +9,10 @@ from .views import (
     MechanicsLocatorView,
     RegisterView,
     AdminStatsView,
+    BookingView,
+    UserWalletView,
+    AdminDeleteDiagnosisView,
+    AdminDeleteBookingView,
 )
 
 urlpatterns = [
@@ -20,4 +24,8 @@ urlpatterns = [
     path("chat/", ChatView.as_view(), name="chat"),
     path("mechanics/", MechanicsLocatorView.as_view(), name="mechanics"),
     path("admin/stats/", AdminStatsView.as_view(), name="admin_stats"),
+    path("bookings/", BookingView.as_view(), name="bookings"),
+    path("wallet/", UserWalletView.as_view(), name="wallet"),
+    path("admin/diagnose/<int:pk>/delete/", AdminDeleteDiagnosisView.as_view(), name="delete_diagnosis"),
+    path("admin/booking/<int:pk>/delete/", AdminDeleteBookingView.as_view(), name="delete_booking"),
 ]

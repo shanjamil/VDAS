@@ -14,6 +14,7 @@ type LoginResponse = {
       email: string;
       name: string;
       is_staff?: boolean;
+      wallet_balance?: number;
     };
     token: {
       refresh: string;
@@ -55,6 +56,9 @@ const persistAuth = (payload: LoginResponse["data"]) => {
   localStorage.setItem(ACCESS_TOKEN_KEY, payload.token.access);
   localStorage.setItem(REFRESH_TOKEN_KEY, payload.token.refresh);
   localStorage.setItem(USER_KEY, JSON.stringify(payload.user));
+  if (payload.user.wallet_balance !== undefined) {
+    localStorage.setItem("vdas:wallet_balance", String(payload.user.wallet_balance));
+  }
 };
 
 export const isAuthed = () => {
@@ -160,6 +164,7 @@ export const signOut = () => {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem("vdas:guest");
+    localStorage.removeItem("vdas:wallet_balance");
   } catch {}
 };
 

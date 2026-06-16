@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import ChatMessage, Diagnosis, User
+from .models import ChatMessage, Diagnosis, User, Booking
 from .serializers import (
     ChatMessageSerializer,
     ChatRequestSerializer,
@@ -23,6 +23,7 @@ from .serializers import (
     LoginSerializer,
     RegisterSerializer,
     AdminDiagnosisSerializer,
+    BookingSerializer,
 )
 
 
@@ -269,6 +270,7 @@ class RegisterView(APIView):
                         "email": user.email,
                         "name": user.name,
                         "is_staff": user.is_staff,
+                        "wallet_balance": float(user.wallet_balance),
                     },
                     "token": {
                         "refresh": str(refresh),
@@ -312,6 +314,7 @@ class LoginView(APIView):
                         "email": user.email,
                         "name": user.name,
                         "is_staff": user.is_staff,
+                        "wallet_balance": float(user.wallet_balance),
                     },
                     "token": {
                         "refresh": str(refresh),
@@ -741,10 +744,16 @@ class AdminStatsView(APIView):
 
         total_users = User.objects.count()
         total_diagnoses = Diagnosis.objects.count()
-        total_earnings = total_diagnoses * 1000  # Simulated as 1000 PKR per diagnosis
+        
+        # Sum all real paid booking amounts
+        bookings = Booking.objects.filter(status="Paid")
+        total_earnings = sum(float(b.amount) for b in bookings)
 
         recent_qs = Diagnosis.objects.select_related("user").order_by("-created_at")[:15]
         recent_data = AdminDiagnosisSerializer(recent_qs, many=True).data
+
+        recent_bookings_qs = Booking.objects.select_related("user").order_by("-created_at")[:15]
+        recent_bookings_data = BookingSerializer(recent_bookings_qs, many=True).data
 
         return Response(
             {
@@ -754,8 +763,151 @@ class AdminStatsView(APIView):
                     "total_diagnoses": total_diagnoses,
                     "total_earnings": total_earnings,
                     "recent_diagnoses": recent_data,
+                    "recent_bookings": recent_bookings_data,
                 }
             },
             status=status.HTTP_200_OK
         )
+
+
+class BookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        bookings = Booking.objects.filter(user=request.user)
+        serializer = BookingSerializer(bookings, many=True)
+        return Response(
+            {"status": "success", "data": serializer.data},
+            status=status.HTTP_200_OK
+        )
+
+    def post(self, request):
+        mechanic_name = request.data.get("mechanic_name")
+        service_type = request.data.get("service_type")
+        booking_date = request.data.get("booking_date")
+        booking_time = request.data.get("booking_time")
+
+        if not all([mechanic_name, service_type, booking_date, booking_time]):
+            return Response(
+                {"status": "error", "message": "All booking details (mechanic_name, service_type, booking_date, booking_time) are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        card_number = request.data.get("card_number", "").replace(" ", "")
+        expiry = request.data.get("expiry_date", "")
+        cvv = request.data.get("cvv", "")
+
+        if not card_number or len(card_number) != 16 or not card_number.isdigit():
+            return Response(
+                {"status": "error", "message": "Invalid credit card number. Must be 16 digits."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not cvv or len(cvv) != 3 or not cvv.isdigit():
+            return Response(
+                {"status": "error", "message": "Invalid CVV. Must be 3 digits."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not expiry or "/" not in expiry:
+            return Response(
+                {"status": "error", "message": "Invalid expiry date. Use MM/YY format."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from decimal import Decimal
+        booking_fee = Decimal("1000.00")
+        user = request.user
+        if user.wallet_balance < booking_fee:
+            return Response(
+                {"status": "error", "message": "Insufficient funds in your simulated wallet. Booking fee is 1,000 PKR."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.wallet_balance -= booking_fee
+        user.save()
+
+        booking = Booking.objects.create(
+            user=user,
+            mechanic_name=mechanic_name,
+            service_type=service_type,
+            booking_date=booking_date,
+            booking_time=booking_time,
+            amount=booking_fee,
+            status="Paid"
+        )
+
+        serializer = BookingSerializer(booking)
+        return Response(
+            {
+                "status": "success",
+                "message": "Payment processed and booking created successfully.",
+                "data": serializer.data
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+class UserWalletView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(
+            {
+                "status": "success",
+                "data": {
+                    "name": request.user.name,
+                    "wallet_balance": float(request.user.wallet_balance)
+                }
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class AdminDeleteDiagnosisView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        if not request.user.is_staff:
+            return Response(
+                {"status": "error", "message": "Only staff members can delete diagnosis logs."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        try:
+            diagnosis = Diagnosis.objects.get(pk=pk)
+            diagnosis.delete()
+            return Response(
+                {"status": "success", "message": f"Diagnosis log {pk} deleted successfully."},
+                status=status.HTTP_200_OK
+            )
+        except Diagnosis.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Diagnosis log not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class AdminDeleteBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        if not request.user.is_staff:
+            return Response(
+                {"status": "error", "message": "Only staff members can delete booking logs."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        try:
+            booking = Booking.objects.get(pk=pk)
+            user = booking.user
+            user.wallet_balance += booking.amount
+            user.save()
+
+            booking.delete()
+            return Response(
+                {"status": "success", "message": f"Booking {pk} deleted successfully. Wallet refunded."},
+                status=status.HTTP_200_OK
+            )
+        except Booking.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Booking not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 

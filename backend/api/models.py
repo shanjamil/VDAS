@@ -34,6 +34,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    wallet_balance = models.DecimalField(max_digits=10, decimal_places=2, default=5000.00)
     date_joined = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()
@@ -74,3 +75,20 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.role}: {self.content[:60]}"
+
+
+class Booking(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookings")
+    mechanic_name = models.CharField(max_length=255)
+    service_type = models.CharField(max_length=255)
+    booking_date = models.DateField()
+    booking_time = models.CharField(max_length=50)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=1000.00)
+    status = models.CharField(max_length=50, default="Paid")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.mechanic_name} - {self.booking_date}"
