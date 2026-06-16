@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Eye, EyeOff, Loader2, ShieldCheck, Sparkles, UserPlus } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, ShieldCheck, Sparkles, UserPlus, Search, Cog, MapPin, ShieldAlert } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { LoginSkeleton } from "@/components/Skeletons";
 import { isAuthedStrict, signUp } from "@/lib/auth";
@@ -97,21 +97,25 @@ export default function Register() {
             Create your account once, then sign in anytime to access diagnostics, AI assistance, and repair guidance.
           </p>
 
-          <div className="mt-10 space-y-4">
+          <div className="mt-8 space-y-3.5 w-full max-w-md">
             {[
-              { icon: ShieldCheck, label: "Your credentials are stored in the backend database." },
-              { icon: UserPlus, label: "Signup instantly returns access so users can continue without friction." },
-              { icon: ArrowRight, label: "After registration, users go directly into the V-DAS experience." },
-            ].map(({ icon: Icon, label }, index) => (
+              { icon: <Search className="h-5 w-5 text-primary shrink-0" />, title: "AI-Driven Diagnosis", desc: "Analyze vehicle symptoms via speech or text inputs." },
+              { icon: <Cog className="h-5 w-5 text-secondary shrink-0" />, title: "Interactive 3D Visualizer", desc: "Examine components (engine, brakes, etc.) in detail." },
+              { icon: <MapPin className="h-5 w-5 text-green-400 shrink-0" />, title: "Mechanic Locator", desc: "Find nearby automotive workshops on an interactive map." },
+              { icon: <ShieldAlert className="h-5 w-5 text-yellow-400 shrink-0" />, title: "Admin Dashboard", desc: "System logs, user lists, and system management for staff." },
+            ].map((p, i) => (
               <div
-                key={label}
-                className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-md animate-slide-up"
-                style={{ animationDelay: `${320 + index * 120}ms`, animationFillMode: "backwards" }}
+                key={p.title}
+                className="flex items-center gap-3.5 rounded-xl border border-white/10 bg-white/5 p-3.5 text-left backdrop-blur-md animate-slide-up"
+                style={{ animationDelay: `${320 + i * 100}ms`, animationFillMode: "backwards" }}
               >
-                <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/12">
-                  <Icon className="h-5 w-5" />
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-white/10 shrink-0">
+                  {p.icon}
                 </div>
-                <p className="text-sm text-white/90">{label}</p>
+                <div>
+                  <h4 className="text-sm font-bold text-white leading-snug">{p.title}</h4>
+                  <p className="text-xs text-white/70 mt-0.5 leading-normal">{p.desc}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -137,7 +141,7 @@ export default function Register() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className={cn(
-                    "mt-1.5 h-11 w-full rounded-lg border bg-card px-3 text-sm placeholder:text-muted-foreground transition-all duration-200 focus:border-primary focus:shadow-[0_0_0_4px_hsl(244_100%_70%_/_0.18)] focus:outline-none",
+                    "mt-1.5 h-11 w-full rounded-lg border bg-card px-3 text-sm placeholder:text-muted-foreground transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/60 focus:outline-none",
                     errors.name ? "border-danger" : "border-border"
                   )}
                 />
@@ -153,7 +157,7 @@ export default function Register() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={cn(
-                    "mt-1.5 h-11 w-full rounded-lg border bg-card px-3 text-sm placeholder:text-muted-foreground transition-all duration-200 focus:border-primary focus:shadow-[0_0_0_4px_hsl(244_100%_70%_/_0.18)] focus:outline-none",
+                    "mt-1.5 h-11 w-full rounded-lg border bg-card px-3 text-sm placeholder:text-muted-foreground transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/60 focus:outline-none",
                     errors.email ? "border-danger" : "border-border"
                   )}
                 />
@@ -170,7 +174,7 @@ export default function Register() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={cn(
-                      "h-11 w-full rounded-lg border bg-card px-3 pr-10 text-sm placeholder:text-muted-foreground transition-all duration-200 focus:border-primary focus:shadow-[0_0_0_4px_hsl(244_100%_70%_/_0.18)] focus:outline-none",
+                      "h-11 w-full rounded-lg border bg-card px-3 pr-10 text-sm placeholder:text-muted-foreground transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/60 focus:outline-none",
                       errors.password ? "border-danger" : "border-border"
                     )}
                   />

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Mic, Search, MapPin, Cog } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mic, Search, MapPin, Cog, ShieldAlert } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { isAuthedStrict, signIn } from "@/lib/auth";
 import { LoginSkeleton } from "@/components/Skeletons";
@@ -87,20 +87,26 @@ export default function Login() {
           >
             AI-powered vehicle diagnostics at your fingertips.
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-2">
+          <div className="mt-8 space-y-3.5 w-full max-w-sm mx-auto">
             {[
-              { icon: <Mic className="h-3.5 w-3.5" />, label: "Voice Input" },
-              { icon: <Search className="h-3.5 w-3.5" />, label: "AI Fault Detection" },
-              { icon: <MapPin className="h-3.5 w-3.5" />, label: "Smart Assistance" },
+              { icon: <Search className="h-5 w-5 text-primary shrink-0" />, title: "AI-Driven Diagnosis", desc: "Analyze vehicle symptoms via speech or text inputs." },
+              { icon: <Cog className="h-5 w-5 text-secondary shrink-0" />, title: "Interactive 3D Visualizer", desc: "Examine components (engine, brakes, etc.) in detail." },
+              { icon: <MapPin className="h-5 w-5 text-green-400 shrink-0" />, title: "Mechanic Locator", desc: "Find nearby automotive workshops on an interactive map." },
+              { icon: <ShieldAlert className="h-5 w-5 text-yellow-400 shrink-0" />, title: "Admin Dashboard", desc: "System logs, user lists, and system management for staff." },
             ].map((p, i) => (
-              <span
-                key={p.label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 backdrop-blur-sm px-3.5 py-1.5 text-sm font-medium text-white animate-slide-up"
-                style={{ animationDelay: `${320 + i * 120}ms`, animationFillMode: "backwards" }}
+              <div
+                key={p.title}
+                className="flex items-center gap-3.5 rounded-xl border border-white/10 bg-white/5 p-3.5 text-left backdrop-blur-md animate-slide-up"
+                style={{ animationDelay: `${320 + i * 100}ms`, animationFillMode: "backwards" }}
               >
-                {p.icon}
-                {p.label}
-              </span>
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-white/10 shrink-0">
+                  {p.icon}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white leading-snug">{p.title}</h4>
+                  <p className="text-xs text-white/70 mt-0.5 leading-normal">{p.desc}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -125,7 +131,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={cn(
-                    "mt-1.5 w-full h-11 rounded-lg bg-card border px-3 text-sm placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary focus:shadow-[0_0_0_4px_hsl(244_100%_70%_/_0.18)]",
+                    "mt-1.5 w-full h-11 rounded-lg bg-card border px-3 text-sm placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/60",
                     errors.email ? "border-danger" : "border-border"
                   )}
                 />
@@ -142,7 +148,7 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={cn(
-                      "w-full h-11 rounded-lg bg-card border px-3 pr-10 text-sm placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary focus:shadow-[0_0_0_4px_hsl(244_100%_70%_/_0.18)]",
+                      "w-full h-11 rounded-lg bg-card border px-3 pr-10 text-sm placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/60",
                       errors.password ? "border-danger" : "border-border"
                     )}
                   />
